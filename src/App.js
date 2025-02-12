@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import NotificationsSidebar from "./components/NotificationsSidebar";
 import './App.css';
-//import BatteryGraph from "./components/BatteryGraph";
+import BatteryGraph from "./components/BatteryGraph";
 import BatteryIndicator from "./components/BatteryIndicator";
 import EVChargingMap from "./components/EVChargingMap";
 
 const App = () => {
     const [notifications, setNotifications] = useState([]);
     const [batteryLevel, setBatteryLevel] = useState(80);  // Example default level
-    //const [batteryData, setBatteryData] = useState([50, 60, 70, 80, 90]); 
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [notification, setNotification] = useState("");
-    const [estimatedTime, setEstimatedTime] = useState(""); // Define it properly
- // Sample graph data
+    const [batteryData, setBatteryData] = useState([50, 60, 70, 80, 90]);  // Sample graph data
 
     const addNotification = (message) => {
         setNotifications((prev) => [...prev, { id: Date.now(), text: message }]);
