@@ -158,14 +158,16 @@ const handlePlaceChanged = () => {
             lng: position.coords.longitude,
           };
   
-          // Debugging
+          // ✅ Debugging
           console.log("User Location:", newLocation);
   
-          // Validate the location before updating state
+          // ✅ Validate the location before updating state
           if (
             newLocation &&
             typeof newLocation.lat === "number" &&
-            typeof newLocation.lng === "number"
+            typeof newLocation.lng === "number" &&
+            !isNaN(newLocation.lat) &&
+            !isNaN(newLocation.lng)
           ) {
             setUserLocation(newLocation);
             setCenter(newLocation);
