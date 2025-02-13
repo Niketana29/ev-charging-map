@@ -289,7 +289,23 @@ const handlePlaceChanged = () => {
     });
   };
   
-  
+  const geocodeAddress = async (address) => {
+    try {
+        const geocoder = new window.google.maps.Geocoder();
+        return new Promise((resolve, reject) => {
+            geocoder.geocode({ address }, (results, status) => {
+                if (status === "OK") {
+                    resolve(results[0].geometry.location);
+                } else {
+                    reject(new Error(`Geocode failed due to: ${status}`));
+                }
+            });
+        });
+    } catch (error) {
+        console.error("Geocoding error:", error);
+    }
+};
+
 
   
   const calculateRoute = async () => {
