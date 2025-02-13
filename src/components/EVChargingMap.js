@@ -213,26 +213,27 @@ const handlePlaceChanged = () => {
 const getCoordinates = async (address) => {
   try {
     if (!address) return null;
+    console.log("📍 Geocoding Address:", address);  // Debugging
     
     const response = await axios.get(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`
     );
 
+    console.log("📍 Geocode Response:", response.data);  // Debugging
+
     if (response.data.status !== "OK" || response.data.results.length === 0) {
-      console.error("❌ Geocoding failed:", response.data);
-      addNotification("⚠️ Unable to determine coordinates!", "warning");
+      console.error("❌ Geocoding failed:", response.data.status);
+      addNotification("⚠️ Invalid address. Try another.", "warning");
       return null;
     }
 
-    const location = response.data.results[0].geometry.location;
-    console.log("✅ Geocoded location:", location);
-    return location;
+    return response.data.results[0].geometry.location;
   } catch (error) {
-    console.error("❌ Geocoding API error:", error);
-    addNotification("⚠️ Unable to determine coordinates!", "warning");
+    console.error("Geocoding API error:", error);
     return null;
   }
 };
+
 
   
 
@@ -342,7 +343,12 @@ const getCoordinates = async (address) => {
       console.log("Setting map center to:", startLocation);
     
       if (startLocation.lat && startLocation.lng) {
-        map.setCenter(startLocation);
+        const coords = await getCoordinates(startLocation);
+        if (coords) {
+          map.setCenter(coords);
+        } else {
+          console.error("⚠️ Geocoding failed. Cannot set map center.");
+        }
       } else {
         console.error("Invalid startLocation provided to setCenter:", startLocation);
       }
