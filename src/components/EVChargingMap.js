@@ -63,7 +63,10 @@ const EVChargingMap = () => {
 
   const startLocationRef = useRef(null);
   const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-
+  const addNotification = (message, type = "info") => {
+    setNotifications((prev) => [...prev, { message, type }]);
+  };
+  
 useEffect(() => {
   // Simulate battery drain (for testing)
   const interval = setInterval(() => {
@@ -207,29 +210,30 @@ const handlePlaceChanged = () => {
 };
 
 
-  const getCoordinates = async (address) => {
-    try {
-      if (!address) return null;
-      const response = await axios.get(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`
-      );
-  
-      if (response.data.status !== "OK" || response.data.results.length === 0) {
-        addNotification("Battery level is low!", "warning");
-        return null;
-      }
-  
-      return response.data.results[0].geometry.location;
-    } catch (error) {
-      console.error("Geocoding API error:", error);
-      addNotification("Battery level is low!", "warning");
+const getCoordinates = async (address) => {
+  try {
+    if (!address) return null;
+    
+    const response = await axios.get(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`
+    );
+
+    if (response.data.status !== "OK" || response.data.results.length === 0) {
+      console.error("❌ Geocoding failed:", response.data);
+      addNotification("⚠️ Unable to determine coordinates!", "warning");
       return null;
     }
-  };
-  
-  const addNotification = (message, type = "info") => {
-    setNotifications((prev) => [...prev, { message, type }]);
-  };
+
+    const location = response.data.results[0].geometry.location;
+    console.log("✅ Geocoded location:", location);
+    return location;
+  } catch (error) {
+    console.error("❌ Geocoding API error:", error);
+    addNotification("⚠️ Unable to determine coordinates!", "warning");
+    return null;
+  }
+};
+
   
 
   const getNearestStation = (coords) => {
@@ -327,20 +331,32 @@ const handlePlaceChanged = () => {
 
   
   const calculateRoute = async () => {
+    console.log("🚀 Calculating Route...");
+    console.log("📍 Search Type:", searchType);
+    console.log("📍 Start Location (Before Geocoding):", startLocation);
     if (!vehicleType) {
       addNotification("⚠️ Please select a vehicle type!", "warning");
       return;
     }
     if (map && startLocation) {
       console.log("Setting map center to:", startLocation);
-      map.setCenter(startLocation);
-  }
+    
+      if (startLocation.lat && startLocation.lng) {
+        map.setCenter(startLocation);
+      } else {
+        console.error("Invalid startLocation provided to setCenter:", startLocation);
+      }
+    }
+    
 
     let startCoords = searchType === "startLocation"
       ? await getCoordinates(startLocation)
       : userLocation || await fetchUserLocation();
+      
+    console.log("📍 Start Coordinates (After Geocoding):", startCoords);
 
-    if (!startCoords) {
+    if (!startCoords || !startCoords.lat || !startCoords.lng) {
+      console.error("⚠️ Invalid start location:", startCoords);
       addNotification("⚠️ Unable to determine your location!", "warning");
       return;
     }
@@ -373,6 +389,7 @@ const handlePlaceChanged = () => {
         }
       }
     );
+    setCenter(startCoords);
   };
 
   const calculateActualTravelTime = () => {
