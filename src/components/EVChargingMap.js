@@ -157,8 +157,21 @@ const handlePlaceChanged = () => {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          setUserLocation(newLocation);
-          setCenter(newLocation);
+  
+          // Debugging
+          console.log("User Location:", newLocation);
+  
+          // Validate the location before updating state
+          if (
+            newLocation &&
+            typeof newLocation.lat === "number" &&
+            typeof newLocation.lng === "number"
+          ) {
+            setUserLocation(newLocation);
+            setCenter(newLocation);
+          } else {
+            console.error("Invalid location received:", newLocation);
+          }
         },
         (error) => {
           console.warn("Geolocation error:", error);
@@ -167,8 +180,11 @@ const handlePlaceChanged = () => {
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
       setWatchId(id);
+    } else {
+      console.error("Geolocation is not supported by this browser.");
     }
   };
+  
   const findNearestChargingStation = (origin, chargingStations) => {
     let nearestStation = null;
     let minDistance = Number.MAX_VALUE;
