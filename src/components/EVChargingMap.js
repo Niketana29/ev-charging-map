@@ -297,6 +297,10 @@ const handlePlaceChanged = () => {
       addNotification("⚠️ Please select a vehicle type!", "warning");
       return;
     }
+    if (map && startLocation) {
+      console.log("Setting map center to:", startLocation);
+      map.setCenter(startLocation);
+  }
 
     let startCoords = searchType === "startLocation"
       ? await getCoordinates(startLocation)
