@@ -340,19 +340,18 @@ const getCoordinates = async (address) => {
       return;
     }
     if (map && startLocation) {
-      console.log("Setting map center to:", startLocation);
+      console.log("📍 Setting map center to:", startLocation);
     
-      if (startLocation.lat && startLocation.lng) {
-        const coords = await getCoordinates(startLocation);
-        if (coords) {
-          map.setCenter(coords);
-        } else {
-          console.error("⚠️ Geocoding failed. Cannot set map center.");
-        }
+      const coords = await getCoordinates(startLocation); // Convert address to LatLng
+    
+      if (coords) {
+        map.setCenter(coords); // ✅ Correct: Now using valid LatLng object
       } else {
-        console.error("Invalid startLocation provided to setCenter:", startLocation);
+        console.error("⚠️ Geocoding failed. Cannot set map center.");
+        addNotification("⚠️ Failed to set map center due to geocoding error.", "warning");
       }
     }
+    
     
 
     let startCoords = searchType === "startLocation"
