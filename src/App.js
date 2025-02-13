@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
 import NotificationsSidebar from "./components/NotificationsSidebar";
 import './App.css';
-import BatteryGraph from "./components/BatteryGraph";
+import BatteryGraph from "./components/BatteryGraph";// eslint-disable-line no-unused-vars
 import BatteryIndicator from "./components/BatteryIndicator";
 import EVChargingMap from "./components/EVChargingMap";
 
 const App = () => {
     const [notifications, setNotifications] = useState([]);
-    const [batteryLevel, setBatteryLevel] = useState(80);  // Example default level
-    const [batteryData, setBatteryData] = useState([50, 60, 70, 80, 90]);  // Sample graph data
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [notification, setNotification] = useState('');
-    const [estimatedTime, setEstimatedTime] = useState('');
+    const [batteryLevel, setBatteryLevel] = useState(80);  // Example default level // eslint-disable-line no-unused-vars
+    const [batteryData, setBatteryData] = useState([50, 60, 70, 80, 90]);  // Sample graph data // eslint-disable-line no-unused-vars
+    const [sidebarOpen, setSidebarOpen] = useState(false); // eslint-disable-line no-unused-vars
+    const [notification, setNotification] = useState(''); // eslint-disable-line no-unused-vars
+    const [estimatedTime, setEstimatedTime] = useState(''); // eslint-disable-line no-unused-vars
 
 
     const addNotification = (message) => {
@@ -24,12 +24,12 @@ const App = () => {
     const showBatteryInfo = () => {
         setNotifications("Battery Info: " + batteryLevel + "%");
         setSidebarOpen(true);  // Open sidebar automatically
-    };
+    }; 
     
     const showTravelTime = () => {
         setNotification("Estimated Travel Time: " + estimatedTime);
         setSidebarOpen(true);  // Open sidebar automatically
-    };
+    }; 
     
 
     return (
