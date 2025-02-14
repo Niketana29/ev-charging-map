@@ -317,20 +317,24 @@ const getCoordinates = async (address) => {
   
   const geocodeAddress = async (address) => {
     try {
-        const geocoder = new window.google.maps.Geocoder();
-        return new Promise((resolve, reject) => {
-            geocoder.geocode({ address }, (results, status) => {
-                if (status === "OK") {
-                    resolve(results[0].geometry.location);
-                } else {
-                    reject(new Error(`Geocode failed due to: ${status}`));
-                }
-            });
-        });
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
+        const data = await response.json();
+
+        console.log("📍 Geocode Response:", data);
+
+        if (data.status === "OK") {
+            return data.results[0].geometry.location;
+        } else {
+            console.error("❌ Geocoding failed:", data);
+            return null;
+        }
     } catch (error) {
-        console.error("Geocoding error:", error);
+        console.error("❌ Error fetching geocode data:", error);
+        return null;
     }
 };
+
+
 
 
   
@@ -345,7 +349,7 @@ const calculateRoute = async () => {
   }
 
   let startCoords = searchType === "startLocation"
-      ? await getCoordinates(startLocation)  // Geocode address
+      ? await getCoordinates(startLocation)  // Fetch coordinates from backend
       : userLocation || await fetchUserLocation();  // Get live location
 
   console.log("📍 Start Coordinates (After Geocoding):", startCoords);
@@ -366,9 +370,9 @@ const calculateRoute = async () => {
 
   console.log("📍 Destination (Charging Station):", destination);
 
-  // Use the Backend API Key
-  const backendApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY_BACKEND;
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoords.lat},${startCoords.lng}&destination=${destination.lat},${destination.lng}&key=${backendApiKey}`;
+  // 🔄 Fetch directions from Backend Server
+  const url = `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${startCoords.lat},${startCoords.lng}&destination=${destination.lat},${destination.lng}`;
+
 
   try {
       const response = await fetch(url);
@@ -399,6 +403,7 @@ const calculateRoute = async () => {
       addNotification("❌ Error fetching route data. Check API configuration.", "danger");
   }
 };
+
 
   const calculateActualTravelTime = () => {
     if (!directions || !directions.routes || !directions.routes[0].legs) {

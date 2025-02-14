@@ -67,17 +67,18 @@ const NotificationsSidebar = ({ notifications, clearNotifications }) => {
             {notifications.length === 0 ? (
                 <p style={{ color: "#777" }}>No notifications</p>
             ) : (
-                notifications.map((notif) => (
-                    <div key={notif.id} style={{ 
-                        backgroundColor: "#fff", 
-                        padding: "10px", 
-                        margin: "5px 0",
-                        borderRadius: "5px",
-                        boxShadow: "0px 1px 5px rgba(0,0,0,0.1)"
+                notifications.map((notif, index) => (
+                    <div key={notif.id || index} style={{ 
+                      backgroundColor: "#fff", 
+                      padding: "10px", 
+                      margin: "5px 0",
+                      borderRadius: "5px",
+                      boxShadow: "0px 1px 5px rgba(0,0,0,0.1)"
                     }}>
-                        {notif.text}
+                      {notif.text}
                     </div>
-                ))
+                  ))
+                  
             )}
         </div>
     );
