@@ -494,7 +494,6 @@ const calculateRoute = async () => {
             <NotificationsSidebar notifications={notifications} />
             </div>
         
-
             <GoogleMap
               mapContainerStyle={mapContainerStyle}
               zoom={12}
