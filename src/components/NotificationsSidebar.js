@@ -1,13 +1,13 @@
-import React, { useState , useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 const NotificationsSidebar = ({ notifications, clearNotifications }) => {
     const [isOpen, setIsOpen] = useState(false);
+
     useEffect(() => {
         if (notifications.length > 0) {
             setIsOpen(true);
         }
     }, [notifications]);
-
 
     return (
         <div style={{ 
@@ -68,17 +68,16 @@ const NotificationsSidebar = ({ notifications, clearNotifications }) => {
                 <p style={{ color: "#777" }}>No notifications</p>
             ) : (
                 notifications.map((notif, index) => (
-                    <div key={notif.id || index} style={{ 
-                      backgroundColor: "#fff", 
-                      padding: "10px", 
-                      margin: "5px 0",
-                      borderRadius: "5px",
-                      boxShadow: "0px 1px 5px rgba(0,0,0,0.1)"
+                    <div key={notif.id ? `notif-${notif.id}` : `notif-${index}`} style={{ 
+                        backgroundColor: "#fff", 
+                        padding: "10px", 
+                        margin: "5px 0",
+                        borderRadius: "5px",
+                        boxShadow: "0px 1px 5px rgba(0,0,0,0.1)"
                     }}>
-                      {notif.text}
+                        {notif.text}
                     </div>
-                  ))
-                  
+                ))
             )}
         </div>
     );

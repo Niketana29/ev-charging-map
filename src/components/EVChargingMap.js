@@ -61,14 +61,12 @@ const EVChargingMap = () => {
 
 
 
+
   const startLocationRef = useRef(null);
   const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
   const backendApiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY_BACKEND;
 
-  const addNotification = (message, type = "info") => {
-    setNotifications((prev) => [...prev, { message, type }]);
-  };
-  
+ 
 useEffect(() => {
   // Simulate battery drain (for testing)
   const interval = setInterval(() => {
@@ -120,16 +118,6 @@ useEffect(() => {
     if (watchId) navigator.geolocation.clearWatch(watchId);
   }
 }, [trackLocation]);
-
-const handlePlaceChanged = () => {
-    if (startLocationRef.current && startLocationRef.current.getPlace()) {
-      const place = startLocationRef.current.getPlace();
-      
-      if (place.geometry) {
-        setStartLocation(place.formatted_address); // Store the selected location
-      }
-    }
-  };
   
   
 
@@ -219,7 +207,7 @@ const getCoordinates = async (address) => {
     console.log("📍 Geocoding Address:", address);
 
     const response = await axios.get(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${backendApiKey}`
+      `${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`
     );
 
     console.log("📍 Geocode Response:", response.data);
@@ -240,32 +228,7 @@ const getCoordinates = async (address) => {
 
   
 
-  const getNearestStation = (coords) => {
-    if (!coords) return null;
-
-    let nearest = null;
-    let minDistance = Infinity;
-
-    chargingStations.forEach((station) => {
-      if (!station.latitude || !station.longitude || !station["Supported Vehicle Types"]?.includes(vehicleType)) return;
-      const stationCoords = {
-        lat: parseFloat(station.latitude),
-        lng: parseFloat(station.longitude),
-      };
-      const distance = haversineDistance(coords, stationCoords);
-
-      if (distance < minDistance && distance <= 50) {
-        minDistance = distance;
-        nearest = { ...station, distance: minDistance };
-      }
-    });
-
-    if (!nearest) {
-      addNotification("Battery level is low!", "warning");
-    }
-
-    return nearest;
-  };
+  
 
   const haversineDistance = (coords1, coords2) => {
     const R = 6371;
@@ -282,24 +245,23 @@ const getCoordinates = async (address) => {
     return R * c;
   };
   const calculateBatteryConsumption = (distance) => {
-    if (!vehicleType) return;
-  
-    const consumptionRate = batteryConsumptionRates[vehicleType];
-    if (!consumptionRate) {
-      addNotification("Battery level is low!", "warning");
+    if (!vehicleType || !batteryConsumptionRates[vehicleType]) {
+      addNotification("⚠️ Invalid vehicle type or missing consumption rate!", "warning");
       return;
     }
   
+    const consumptionRate = batteryConsumptionRates[vehicleType];
     const consumedBattery = distance * consumptionRate;
-    const newBatteryLevel = Math.max(0, batteryLevel - consumedBattery); // Prevent negative battery
+    const newBatteryLevel = Math.max(0, batteryLevel - consumedBattery);
   
     setBatteryLevel(newBatteryLevel);
-    setNotifications([...notifications, `Battery level reduced to ${newBatteryLevel.toFixed(2)}%`]);
+    setNotifications([...notifications, `🔋 Battery level reduced to ${newBatteryLevel.toFixed(2)}%`]);
   
     if (newBatteryLevel <= 0) {
-      setNotifications([...notifications, "Battery depleted! You need to recharge."]);
+      setNotifications([...notifications, "❌ Battery depleted! You need to recharge."]);
     }
   };
+  
   
   const fetchUserLocation = async () => {
     return new Promise((resolve, reject) => {
@@ -317,25 +279,50 @@ const getCoordinates = async (address) => {
   
   const geocodeAddress = async (address) => {
     try {
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
-        const data = await response.json();
-
-        console.log("📍 Geocode Response:", data);
-
-        if (data.status === "OK") {
-            return data.results[0].geometry.location;
-        } else {
-            console.error("❌ Geocoding failed:", data);
-            return null;
-        }
-    } catch (error) {
-        console.error("❌ Error fetching geocode data:", error);
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
+      const data = await response.json();
+  
+      if (data.status === "OK" && data.results.length > 0) {
+        return data.results[0].geometry.location;
+      } else {
+        addNotification("❌ Geocoding failed! Please enter a valid address.", "danger");
         return null;
+      }
+    } catch (error) {
+      console.error("❌ Geocoding API error:", error);
+      addNotification("❌ Error fetching geocode data. Check API settings.", "danger");
+      return null;
     }
+  };
+  
+
+
+const getNearestStation = (coords) => {
+  if (!coords) return null;
+
+  let nearest = null;
+  let minDistance = Infinity;
+
+  chargingStations.forEach((station) => {
+    if (!station.latitude || !station.longitude || !station["Supported Vehicle Types"]?.includes(vehicleType)) return;
+    const stationCoords = {
+      lat: parseFloat(station.latitude),
+      lng: parseFloat(station.longitude),
+    };
+    const distance = haversineDistance(coords, stationCoords);
+
+    if (distance < minDistance && distance <= 50) {
+      minDistance = distance;
+      nearest = { ...station, distance: minDistance };
+    }
+  });
+
+  if (!nearest) {
+    addNotification("Battery level is low!", "warning");
+  }
+
+  return nearest;
 };
-
-
-
 
   
 const calculateRoute = async () => {
@@ -344,26 +331,27 @@ const calculateRoute = async () => {
   console.log("📍 Start Location (Before Geocoding):", startLocation);
 
   if (!vehicleType) {
-      addNotification("⚠️ Please select a vehicle type!", "warning");
-      return;
+    addNotification("⚠️ Please select a vehicle type!", "warning");
+    return;
   }
 
   let startCoords = searchType === "startLocation"
-      ? await getCoordinates(startLocation)  // Fetch coordinates from backend
-      : userLocation || await fetchUserLocation();  // Get live location
+  ? await geocodeAddress(startLocation)  // Fetch coordinates from backend
+  : userLocation || await fetchUserLocation();  // Get live location
+ // Get live location
 
   console.log("📍 Start Coordinates (After Geocoding):", startCoords);
 
   if (!startCoords || !startCoords.lat || !startCoords.lng) {
-      console.error("⚠️ Invalid start location:", startCoords);
-      addNotification("⚠️ Unable to determine your location!", "warning");
-      return;
+    console.error("⚠️ Invalid start location:", startCoords);
+    addNotification("⚠️ Unable to determine your location!", "warning");
+    return;
   }
 
   const nearestStation = getNearestStation(startCoords);
   if (!nearestStation) {
-      addNotification("⚠️ No nearby charging station found!", "warning");
-      return;
+    addNotification("⚠️ No nearby charging station found!", "warning");
+    return;
   }
 
   const destination = { lat: parseFloat(nearestStation.latitude), lng: parseFloat(nearestStation.longitude) };
@@ -375,34 +363,35 @@ const calculateRoute = async () => {
 
 
   try {
-      const response = await fetch(url);
-      const data = await response.json();
+    const response = await fetch(url);
+    const data = await response.json();
 
-      console.log("📍 Directions API Response:", data);
+    console.log("📍 Directions API Response:", data);
 
-      if (data.status === "OK") {
-          setDirections(data);
+    if (data.status === "OK") {
+      setDirections(data);
 
-          const routeDistance = data.routes[0].legs[0].distance.value / 1000;
-          const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
+      const routeDistance = data.routes[0].legs[0].distance.value / 1000;
+      const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
 
-          setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
-          setStoredBatteryUsage(batteryUsage);
-          setStoredTravelTime(data.routes[0].legs[0].duration.text);
+      setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
+      setStoredBatteryUsage(batteryUsage);
+      setStoredTravelTime(data.routes[0].legs[0].duration.text);
 
-          addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
-          addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
+      addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
+      addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
 
-          // ✅ Set the map center only after confirming the route is valid
-          setCenter(startCoords);
-      } else {
-          addNotification("❌ Failed to fetch route. Try again.", "danger");
-      }
+      // ✅ Set the map center only after confirming the route is valid
+      setCenter(startCoords);
+    } else {
+      addNotification("❌ Failed to fetch route. Try again.", "danger");
+    }
   } catch (error) {
-      console.error("❌ Error fetching directions:", error);
-      addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+    console.error("❌ Error fetching directions:", error);
+    addNotification("❌ Error fetching route data. Check API configuration.", "danger");
   }
 };
+
 
 
   const calculateActualTravelTime = () => {
@@ -425,8 +414,21 @@ const calculateRoute = async () => {
       }
     }
   };
+
+  const addNotification = (message, type = "info") => {
+    setNotifications((prev) => [...prev, { message, type }]);
+  };
   
   
+  const handlePlaceChanged = () => {
+    if (startLocationRef.current && startLocationRef.current.getPlace()) {
+      const place = startLocationRef.current.getPlace();
+      
+      if (place.geometry) {
+        setStartLocation(place.formatted_address); // Store the selected location
+      }
+    }
+  };
   
   
 
