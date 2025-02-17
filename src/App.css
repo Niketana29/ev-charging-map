@@ -46,10 +46,16 @@ button:hover {
 
 /* Map Container */
 .map-container {
-  flex-grow: 1;
-  position: relative;
-  height: 100vh;
+  width: 100%;
+  height: 400px;
 }
+
+@media (max-width: 768px) {
+  .map-container {
+    height: 300px;
+  }
+}
+
 
 /* Battery Graph */
 .battery-graph {
