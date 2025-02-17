@@ -291,20 +291,21 @@ const getCoordinates = async (address) => {
   const geocodeAddress = async (address) => {
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
+  
       const data = await response.json();
   
       if (data.status === "OK" && data.results.length > 0) {
         return data.results[0].geometry.location;
       } else {
-        addNotification("❌ Geocoding failed! Please enter a valid address.", "danger");
+        console.error("❌ Geocoding failed:", data);
         return null;
       }
     } catch (error) {
       console.error("❌ Geocoding API error:", error);
-      addNotification("❌ Error fetching geocode data. Check API settings.", "danger");
       return null;
     }
   };
@@ -348,23 +349,18 @@ const getCoordinates = async (address) => {
   const calculateRoute = async () => {
     console.log("🚀 Calculating Route...");
   
-    if (!vehicleType) {
-      addNotification("⚠️ Please select a vehicle type!", "warning");
-      return;
-    }
-  
     let startCoords = searchType === "startLocation"
       ? await geocodeAddress(startLocation)
       : userLocation || await fetchUserLocation();
   
-    if (!startCoords || !startCoords.lat || !startCoords.lng) {
-      addNotification("⚠️ Unable to determine your location!", "warning");
+    if (!startCoords) {
+      console.error("⚠️ Invalid start location:", startCoords);
       return;
     }
   
     const nearestStation = getNearestStation(startCoords);
     if (!nearestStation) {
-      addNotification("⚠️ No nearby charging station found!", "warning");
+      console.error("⚠️ No nearby charging station found!");
       return;
     }
   
@@ -374,22 +370,24 @@ const getCoordinates = async (address) => {
   
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/directions?origin=${startCoords.lat},${startCoords.lng}&destination=${destination.lat},${destination.lng}`);
+  
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
+  
       const data = await response.json();
   
       if (data.status === "OK") {
         setDirections(data);
-        addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
+        console.log("✅ Route fetched successfully");
       } else {
-        addNotification("❌ Failed to fetch route. Try again.", "danger");
+        console.error("❌ Failed to fetch route:", data);
       }
     } catch (error) {
       console.error("❌ Error fetching directions:", error);
-      addNotification("❌ Error fetching route data. Check API configuration.", "danger");
     }
   };
+  
   
   
   
