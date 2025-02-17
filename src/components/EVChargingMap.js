@@ -20,7 +20,12 @@ import NotificationsSidebar from "./NotificationsSidebar";
 
 
 const libraries = ["places"];
-const mapContainerStyle = { width: "100%", height: "600px" };
+const mapContainerStyle = {
+  width: "100%",
+  height: "400px",
+  minHeight: "300px",
+};
+
 
 const batteryConsumptionRates = {
   EV1: 0.15, // 0.15 kWh per km
@@ -265,6 +270,11 @@ const getCoordinates = async (address) => {
   
   const fetchUserLocation = async () => {
     return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation not supported by browser"));
+        return;
+      }
+  
       navigator.geolocation.getCurrentPosition(
         (position) => {
           resolve({
@@ -272,17 +282,18 @@ const getCoordinates = async (address) => {
             lng: position.coords.longitude,
           });
         },
-        (error) => reject(null)
+        (error) => reject(error)
       );
     });
   };
+  
   
   const geocodeAddress = async (address) => {
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
       const data = await response.json();
   
-      if (data.status === "OK" && data.results.length > 0) {
+      if (data.status === "OK" && data.results?.length > 0) {
         return data.results[0].geometry.location;
       } else {
         addNotification("❌ Geocoding failed! Please enter a valid address.", "danger");
@@ -295,103 +306,103 @@ const getCoordinates = async (address) => {
     }
   };
   
+  
 
 
-const getNearestStation = (coords) => {
-  if (!coords) return null;
-
-  let nearest = null;
-  let minDistance = Infinity;
-
-  chargingStations.forEach((station) => {
-    if (!station.latitude || !station.longitude || !station["Supported Vehicle Types"]?.includes(vehicleType)) return;
-    const stationCoords = {
-      lat: parseFloat(station.latitude),
-      lng: parseFloat(station.longitude),
-    };
-    const distance = haversineDistance(coords, stationCoords);
-
-    if (distance < minDistance && distance <= 50) {
-      minDistance = distance;
-      nearest = { ...station, distance: minDistance };
+  const getNearestStation = (coords) => {
+    if (!coords) return null;
+  
+    let nearest = null;
+    let minDistance = Infinity;
+  
+    chargingStations.forEach((station) => {
+      if (!station.latitude || !station.longitude || !station["Supported Vehicle Types"]?.includes(vehicleType)) return;
+      const stationCoords = {
+        lat: parseFloat(station.latitude),
+        lng: parseFloat(station.longitude),
+      };
+      const distance = haversineDistance(coords, stationCoords);
+  
+      if (distance < minDistance && distance <= 50) {
+        minDistance = distance;
+        nearest = { ...station, distance: minDistance };
+      }
+    });
+  
+    if (!nearest) {
+      addNotification("⚠️ No nearby charging station found!", "warning");
     }
-  });
-
-  if (!nearest) {
-    addNotification("Battery level is low!", "warning");
-  }
-
-  return nearest;
-};
+  
+    return nearest;
+  };
+  
 
   
-const calculateRoute = async () => {
-  console.log("🚀 Calculating Route...");
-  console.log("📍 Search Type:", searchType);
-  console.log("📍 Start Location (Before Geocoding):", startLocation);
-
-  if (!vehicleType) {
-    addNotification("⚠️ Please select a vehicle type!", "warning");
-    return;
-  }
-
-  let startCoords = searchType === "startLocation"
-  ? await geocodeAddress(startLocation)  // Fetch coordinates from backend
-  : userLocation || await fetchUserLocation();  // Get live location
- // Get live location
-
-  console.log("📍 Start Coordinates (After Geocoding):", startCoords);
-
-  if (!startCoords || !startCoords.lat || !startCoords.lng) {
-    console.error("⚠️ Invalid start location:", startCoords);
-    addNotification("⚠️ Unable to determine your location!", "warning");
-    return;
-  }
-
-  const nearestStation = getNearestStation(startCoords);
-  if (!nearestStation) {
-    addNotification("⚠️ No nearby charging station found!", "warning");
-    return;
-  }
-
-  const destination = { lat: parseFloat(nearestStation.latitude), lng: parseFloat(nearestStation.longitude) };
-
-  console.log("📍 Destination (Charging Station):", destination);
-
-  // 🔄 Fetch directions from Backend Server
-  const url = `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${startCoords.lat},${startCoords.lng}&destination=${destination.lat},${destination.lng}`;
-
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    console.log("📍 Directions API Response:", data);
-
-    if (data.status === "OK") {
-      setDirections(data);
-
-      const routeDistance = data.routes[0].legs[0].distance.value / 1000;
-      const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
-
-      setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
-      setStoredBatteryUsage(batteryUsage);
-      setStoredTravelTime(data.routes[0].legs[0].duration.text);
-
-      addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
-      addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
-
-      // ✅ Set the map center only after confirming the route is valid
-      setCenter(startCoords);
-    } else {
-      addNotification("❌ Failed to fetch route. Try again.", "danger");
+  const calculateRoute = async () => {
+    console.log("🚀 Calculating Route...");
+    console.log("📍 Search Type:", searchType);
+    console.log("📍 Start Location (Before Geocoding):", startLocation);
+  
+    if (!vehicleType) {
+      addNotification("⚠️ Please select a vehicle type!", "warning");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Error fetching directions:", error);
-    addNotification("❌ Error fetching route data. Check API configuration.", "danger");
-  }
-};
-
+  
+    let startCoords = searchType === "startLocation"
+      ? await geocodeAddress(startLocation) 
+      : userLocation || await fetchUserLocation();  
+  
+    console.log("📍 Start Coordinates (After Geocoding):", startCoords);
+  
+    if (!startCoords || isNaN(startCoords.lat) || isNaN(startCoords.lng)) {
+      console.error("⚠️ Invalid start location:", startCoords);
+      addNotification("⚠️ Unable to determine your location!", "warning");
+      return;
+    }
+  
+    const nearestStation = getNearestStation(startCoords);
+    if (!nearestStation) {
+      addNotification("⚠️ No nearby charging station found!", "warning");
+      return;
+    }
+  
+    const destination = { lat: parseFloat(nearestStation.latitude), lng: parseFloat(nearestStation.longitude) };
+  
+    console.log("📍 Destination (Charging Station):", destination);
+  
+    // 🔄 Fetch directions from Backend Server
+    const url = `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${startCoords.lat},${startCoords.lng}&destination=${destination.lat},${destination.lng}`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+  
+      console.log("📍 Directions API Response:", data);
+  
+      if (data.status === "OK") {
+        setDirections(data);
+  
+        const routeDistance = data.routes[0].legs[0].distance.value / 1000;
+        const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
+  
+        setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
+        setStoredBatteryUsage(batteryUsage);
+        setStoredTravelTime(data.routes[0].legs[0].duration.text);
+  
+        addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
+        addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
+  
+        // ✅ Set the map center only after confirming the route is valid
+        setCenter(startCoords);
+      } else {
+        addNotification("❌ Failed to fetch route. Try again.", "danger");
+      }
+    } catch (error) {
+      console.error("❌ Error fetching directions:", error);
+      addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+    }
+  };
+  
 
 
   const calculateActualTravelTime = () => {
@@ -421,14 +432,14 @@ const calculateRoute = async () => {
   
   
   const handlePlaceChanged = () => {
-    if (startLocationRef.current && startLocationRef.current.getPlace()) {
+    if (startLocationRef.current) {
       const place = startLocationRef.current.getPlace();
-      
-      if (place.geometry) {
-        setStartLocation(place.formatted_address); // Store the selected location
+      if (place && place.geometry) {
+        setStartLocation(place.formatted_address);
       }
     }
   };
+  
   
   
 
@@ -477,13 +488,20 @@ const calculateRoute = async () => {
                 </Form.Control>
               </Form.Group>
               <Form.Group>
-  <Form.Label>Battery Level: {batteryLevel.toFixed(2)}%</Form.Label>
+  <Form.Label>Battery Level: {Math.round(batteryLevel)}%</Form.Label>
+
   <Form.Control type="range" min="0" max="100" value={batteryLevel} readOnly />
 </Form.Group>
 
               <Button variant="primary" onClick={calculateRoute}>Calculate Route</Button>
               <Button variant="success" className="ml-2" onClick={calculateActualTravelTime}>Log Travel Time</Button>
-              <Button variant="info" className="ml-2" onClick={() => setTrackLocation(!trackLocation)}>
+              <Button
+              variant="info"
+              className="ml-2"
+              onClick={() => {
+                setTrackLocation((prev) => !prev);
+              }}
+              >
                 {trackLocation ? "Disable" : "Enable"} Live Tracking
               </Button>
             </Form>
@@ -502,11 +520,19 @@ const calculateRoute = async () => {
             </div>
         
             <GoogleMap
-              mapContainerStyle={mapContainerStyle}
-              zoom={12}
-              center={userLocation || center}
-              onLoad={(map) => setMap(map)}
+            mapContainerStyle={mapContainerStyle}
+            zoom={12}
+            center={userLocation || center}
+            onLoad={(map) => {
+              setMap(map);
+              window.addEventListener("resize", () => {
+                if (userLocation) {
+                  map.setCenter(userLocation);
+                }
+              });
+            }}
             >
+
               {directions && <DirectionsRenderer directions={directions} />}
               {chargingStations.map((station, index) => (
                 <Marker key={index} position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }} />
