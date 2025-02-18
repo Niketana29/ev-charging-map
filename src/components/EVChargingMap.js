@@ -67,6 +67,22 @@ const EVChargingMap = () => {
 
   const backendApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY;
 
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const location = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+            };
+            setUserLocation(location);
+            setCenter(location);
+        },
+        (error) => console.error("Geolocation error:", error),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}, []);
+
  
 useEffect(() => {
   // Simulate battery drain (for testing)
@@ -298,58 +314,70 @@ const fetchUserLocation = async () => {
   
 const fetchGeocode = async (address) => {
   if (!address) {
-      console.error("⚠️ Geocoding Error: Address is empty!");
-      return null;
+    console.error("⚠️ Geocoding Error: Address is empty!");
+    return null;
   }
 
   try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
 
-      const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`Geocoding API Error: ${response.status}`);
+    }
 
-      if (!data.results || data.results.length === 0) {
-          console.error("❌ Geocoding failed: No results found.");
-          addNotification("❌ Geocoding failed. Please enter a valid address.", "danger");
-          return null;
-      }
+    const data = await response.json();
 
-      return data.results[0].geometry.location; // { lat, lng }
-  } catch (error) {
-      console.error("❌ Failed to fetch geocode:", error);
-      addNotification("❌ Failed to fetch location data.", "danger");
+    if (!data.results || data.results.length === 0) {
+      console.error("❌ Geocoding failed: No results found.");
+      addNotification("❌ Geocoding failed. Please enter a valid address.", "danger");
       return null;
+    }
+
+    return data.results[0].geometry.location;
+  } catch (error) {
+    console.error("❌ Failed to fetch geocode:", error);
+    addNotification("❌ Failed to fetch location data.", "danger");
+    return null;
   }
 };
+
 
 const fetchDirections = async (startCoords, nearestStation) => {
   if (!startCoords || !nearestStation) {
-      console.error("❌ Invalid start or destination location:", startCoords, nearestStation);
-      addNotification("❌ Invalid route locations. Please try again.", "danger");
-      return null;
+    console.error("❌ Invalid start or destination location:", startCoords, nearestStation);
+    addNotification("❌ Invalid route locations. Please try again.", "danger");
+    return null;
   }
-
-  const origin = `${startCoords.latitude},${startCoords.longitude}`;
-  const destination = `${nearestStation.latitude},${nearestStation.longitude}`;
 
   try {
-      const response = await fetch(
-          `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`
-      );
-      const data = await response.json();
+    const origin = encodeURIComponent(`${startCoords.lat},${startCoords.lng}`);
+    const destination = encodeURIComponent(`${nearestStation.latitude},${nearestStation.longitude}`);
 
-      if (!data || data.status !== "OK" || !data.routes || data.routes.length === 0) {
-          console.error("❌ Directions API Error:", data);
-          addNotification("❌ Unable to fetch route. Please try again.", "danger");
-          return null;
-      }
+    const response = await fetch(
+      `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${origin}&destination=${destination}`
+    );
 
-      return data;
-  } catch (error) {
-      console.error("❌ Failed to fetch directions:", error);
-      addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+    if (!response.ok) {
+      throw new Error(`Directions API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data || data.status !== "OK") {
+      console.error("Directions API Error:", data);
+      addNotification("❌ Unable to fetch route. Please try again.", "danger");
       return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Failed to fetch directions:", error);
+    addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+    return null;
   }
 };
+
+
 
   
   
@@ -358,7 +386,10 @@ const fetchDirections = async (startCoords, nearestStation) => {
 
 
 const getNearestStation = (coords) => {
-  if (!coords || !chargingStations || chargingStations.length === 0) return null;
+  if (!coords || !chargingStations || chargingStations.length === 0) {
+    addNotification("⚠️ No charging stations available!", "warning");
+    return null;
+  }
 
   const nearbyStations = chargingStations.filter(
     (station) =>
@@ -376,7 +407,7 @@ const getNearestStation = (coords) => {
     const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
     const distance = haversineDistance(coords, stationCoords);
 
-    return distance < closest.distance && distance <= 50 ? { ...station, distance } : closest;
+    return distance < closest.distance ? { ...station, distance } : closest;
   }, { distance: Infinity });
 
   if (nearest.distance === Infinity) {
@@ -387,10 +418,10 @@ const getNearestStation = (coords) => {
   return nearest;
 };
 
-  
-  
 
   
+  
+ 
 const calculateRoute = async () => {
   console.log("🚀 Calculating Route...");
   console.log("📍 Search Type:", searchType);
@@ -401,13 +432,14 @@ const calculateRoute = async () => {
     return;
   }
 
-  let startCoords = searchType === "startLocation"
-  ? await fetchGeocode(startLocation)
-  : userLocation || await fetchUserLocation();
+  let startCoords = null;
+  if (searchType === "startLocation") {
+    startCoords = await fetchGeocode(startLocation);
+  } else {
+    startCoords = userLocation || await fetchUserLocation();
+  }
 
-
-
-  if (!startCoords?.latitude || !startCoords?.longitude) {
+  if (!startCoords?.lat || !startCoords?.lng) {
     console.error("⚠️ Invalid start location:", startCoords);
     addNotification("⚠️ Unable to determine your location!", "warning");
     return;
@@ -416,12 +448,11 @@ const calculateRoute = async () => {
   const nearestStation = getNearestStation(startCoords);
   if (!nearestStation) return;
 
-  const destination = { latitude: parseFloat(nearestStation.latitude), longitude: parseFloat(nearestStation.longitude) };
-  console.log("📍 Destination (Charging Station):", destination);
+  console.log("📍 Destination (Charging Station):", nearestStation);
 
   try {
     const data = await fetchDirections(startCoords, nearestStation);
-    if (!data) return; // Exit if directions API fails
+    if (!data) return;
 
     if (data.status === "OK") {
       setDirections(data);
@@ -435,7 +466,7 @@ const calculateRoute = async () => {
       addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
       addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
 
-      setCenter(startCoords); // Ensure map center is updated
+      setCenter(startCoords);
     } else {
       addNotification("❌ Failed to fetch route. Try again.", "danger");
     }
@@ -444,6 +475,7 @@ const calculateRoute = async () => {
     addNotification("❌ Error fetching route data. Check API configuration.", "danger");
   }
 };
+
 
 
   const calculateActualTravelTime = () => {
@@ -478,19 +510,27 @@ const calculateRoute = async () => {
   
   useEffect(() => {
     if (map && userLocation) {
-      const handleResize = () => map.setCenter(userLocation);
+      const handleResize = () => {
+        map.setCenter(userLocation);
+      };
+  
       window.addEventListener("resize", handleResize);
       
-      return () => window.removeEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
     }
   }, [map, userLocation]);
+  
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setNotifications((prev) => prev.slice(1));
-    }, 5000); // Auto-remove notifications after 5 seconds
+    }, 5000);
+    
     return () => clearTimeout(timer);
   }, [notifications]);
+  
   
   
 
