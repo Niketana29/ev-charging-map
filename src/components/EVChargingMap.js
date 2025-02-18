@@ -62,13 +62,9 @@ const EVChargingMap = () => {
   const [storedTravelTime, setStoredTravelTime] = useState(null);
 
 
-
-
-
-
-
   const startLocationRef = useRef(null);
-  const GOOGLE_MAPS_API_KEY = process.env.FRONTEND_GOOGLE_MAPS_API_KEY;
+  const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+
   const backendApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY;
 
  
@@ -308,6 +304,7 @@ const fetchGeocode = async (address) => {
 
   try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/geocode?address=${encodeURIComponent(address)}`);
+
       const data = await response.json();
 
       if (!data.results || data.results.length === 0) {
@@ -324,6 +321,35 @@ const fetchGeocode = async (address) => {
   }
 };
 
+const fetchDirections = async (startCoords, nearestStation) => {
+  if (!startCoords || !nearestStation) {
+      console.error("❌ Invalid start or destination location:", startCoords, nearestStation);
+      addNotification("❌ Invalid route locations. Please try again.", "danger");
+      return null;
+  }
+
+  const origin = `${startCoords.latitude},${startCoords.longitude}`;
+  const destination = `${nearestStation.latitude},${nearestStation.longitude}`;
+
+  try {
+      const response = await fetch(
+          `${process.env.REACT_APP_BACKEND_URL}/directions?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`
+      );
+      const data = await response.json();
+
+      if (!data || data.status !== "OK" || !data.routes || data.routes.length === 0) {
+          console.error("❌ Directions API Error:", data);
+          addNotification("❌ Unable to fetch route. Please try again.", "danger");
+          return null;
+      }
+
+      return data;
+  } catch (error) {
+      console.error("❌ Failed to fetch directions:", error);
+      addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+      return null;
+  }
+};
 
   
   
@@ -376,8 +402,9 @@ const calculateRoute = async () => {
   }
 
   let startCoords = searchType === "startLocation"
-  ? await fetchGeocode(startLocation)  // Fetch coordinates using new function
+  ? await fetchGeocode(startLocation)
   : userLocation || await fetchUserLocation();
+
 
 
   if (!startCoords?.latitude || !startCoords?.longitude) {
@@ -393,8 +420,8 @@ const calculateRoute = async () => {
   console.log("📍 Destination (Charging Station):", destination);
 
   try {
-    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/directions?origin=${startCoords.latitude},${startCoords.longitude}&destination=${destination.latitude},${destination.longitude}`);
-    const data = await response.json();
+    const data = await fetchDirections(startCoords, nearestStation);
+    if (!data) return; // Exit if directions API fails
 
     if (data.status === "OK") {
       setDirections(data);
@@ -457,6 +484,14 @@ const calculateRoute = async () => {
       return () => window.removeEventListener("resize", handleResize);
     }
   }, [map, userLocation]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setNotifications((prev) => prev.slice(1));
+    }, 5000); // Auto-remove notifications after 5 seconds
+    return () => clearTimeout(timer);
+  }, [notifications]);
+  
   
 
   return (
