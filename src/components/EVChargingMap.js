@@ -342,6 +342,7 @@ const fetchGeocode = async (address) => {
 };
 
 
+
 const fetchDirections = async (startCoords, nearestStation) => {
   if (!startCoords || !nearestStation) {
     console.error("❌ Invalid start or destination location:", startCoords, nearestStation);
@@ -376,6 +377,7 @@ const fetchDirections = async (startCoords, nearestStation) => {
     return null;
   }
 };
+
 
 
 
@@ -444,6 +446,7 @@ const calculateRoute = async () => {
     addNotification("⚠️ Unable to determine your location!", "warning");
     return;
   }
+  
 
   const nearestStation = getNearestStation(startCoords);
   if (!nearestStation) return;
@@ -497,6 +500,7 @@ const calculateRoute = async () => {
   };
   
   
+  
   const handlePlaceChanged = () => {
     if (startLocationRef.current) {
       const place = startLocationRef.current.getPlace();
@@ -510,17 +514,10 @@ const calculateRoute = async () => {
   
   useEffect(() => {
     if (map && userLocation) {
-      const handleResize = () => {
-        map.setCenter(userLocation);
-      };
-  
-      window.addEventListener("resize", handleResize);
-      
-      return () => {
-        window.removeEventListener("resize", handleResize);
-      };
+      map.setCenter(userLocation);
     }
   }, [map, userLocation]);
+  
   
 
   useEffect(() => {
@@ -535,7 +532,7 @@ const calculateRoute = async () => {
   
 
   return (
-    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY} libraries={libraries}>
+    <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={libraries}>
       <Container className="mt-4">
         <Row className="justify-content-center">
           <Col xs={12} md={8}>
@@ -617,24 +614,24 @@ const calculateRoute = async () => {
             </div>
         
             <GoogleMap
-            mapContainerStyle={mapContainerStyle}
-            zoom={12}
-            center={userLocation || center}
-            onLoad={(map) => {
-              setMap(map);
-              window.addEventListener("resize", () => {
-                if (userLocation) {
-                  map.setCenter(userLocation);
-                }
-              });
-            }}
-            >
+  mapContainerStyle={mapContainerStyle}
+  zoom={12}
+  center={userLocation || center}
+  onLoad={(map) => {
+    setMap(map);
+    window.addEventListener("resize", () => {
+      if (userLocation) {
+        map.setCenter(userLocation);
+      }
+    });
+  }}
+>
+  {directions && <DirectionsRenderer directions={directions} />}
+  {chargingStations.map((station, index) => (
+    <Marker key={index} position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }} />
+  ))}
+</GoogleMap>
 
-              {directions && <DirectionsRenderer directions={directions} />}
-              {chargingStations.map((station, index) => (
-                <Marker key={index} position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }} />
-              ))}
-            </GoogleMap>
             
           </Col>
         </Row>
