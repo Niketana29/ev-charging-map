@@ -24,14 +24,14 @@ app.post("/calculate-route", async (req, res) => {
       `https://maps.googleapis.com/maps/api/directions/json`,
       {
         params: {
-          origin,
-          destination,
-          travelMode: "DRIVING",
-          key: GOOGLE_MAPS_API_KEY,
+          origin: encodeURIComponent(origin),
+          destination: encodeURIComponent(destination),
+          mode: "driving",  // Use correct 'mode' instead of 'travelMode'
+          key: process.env.BACKEND_GOOGLE_MAPS_API_KEY,
         },
       }
     );
-
+    
     res.json(response.data);
   } catch (error) {
     console.error("Error fetching directions:", error);

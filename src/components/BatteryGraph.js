@@ -9,27 +9,22 @@ const BatteryGraph = ({ batteryLevel }) => {
   const [batteryData, setBatteryData] = useState([]);
 
   useEffect(() => {
-    // Debounce updates to prevent excessive re-renders
-    const timer = setTimeout(() => {
-      setBatteryData((prevData) => [...prevData.slice(-9), batteryLevel]); // Keep last 10 values
-    }, 500); 
-
-    return () => clearTimeout(timer); // Cleanup function
+    // Update battery data with a rolling window of last 10 values
+    setBatteryData((prevData) => [...prevData.slice(-9), batteryLevel]);
   }, [batteryLevel]);
 
-  const BatteryGraph = ({ batteryData }) => {
-    const data = {
-      labels: batteryData.map((_, index) => `T${index + 1}`),
-      datasets: [
-        {
-          label: "Battery Level (%)",
-          data: batteryData,
-          borderColor: "#4CAF50",
-          backgroundColor: "rgba(76, 175, 80, 0.2)",
-          tension: 0.3,
-        },
-      ],
-    };
+  const data = {
+    labels: batteryData.map((_, index) => `T${index + 1}`),
+    datasets: [
+      {
+        label: "Battery Level (%)",
+        data: batteryData,
+        borderColor: "#4CAF50",
+        backgroundColor: "rgba(76, 175, 80, 0.2)",
+        tension: 0.3,
+      },
+    ],
+  };
   
     const options = {
       responsive: true,
@@ -54,6 +49,5 @@ const BatteryGraph = ({ batteryLevel }) => {
     );
   };
 
-};
 
 export default BatteryGraph;
