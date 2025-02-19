@@ -75,6 +75,7 @@ const EVChargingMap = () => {
     addNotification("⚠️ API Key issue detected!", "danger");
 }
 
+  console.log("Google Maps API Key:", process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
 
   const backendApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY;
 
@@ -374,11 +375,13 @@ const fetchGeocode = async (address) => {
                 },
             });
 
-            if (response.data.status === "OK") {
-                return response.data.results[0].geometry.location;
-            } else {
-                throw new Error("Invalid location");
-            }
+            if (!response.data || response.data.status !== "OK") {
+              console.error("❌ Geocoding API Error:", response.data.status);
+              addNotification("❌ Invalid location. Try again!", "danger");
+              return null;
+          }
+          return response.data.results[0].geometry.location;
+          
         } catch (error) {
             console.error("Geocoding Error:", error);
             addNotification("❌ Error fetching location.", "danger");
@@ -406,12 +409,14 @@ const fetchGeocode = async (address) => {
                   },
               }
           );
-          if (!response || response.status !== "OK") {
-              addNotification("❌ Failed to fetch route. Try again.", "danger");
-              return;
-          }
+          const data = response.data;
+if (!data || data.status !== "OK") {
+    addNotification("❌ Failed to fetch route. Try again.", "danger");
+    return;
+}
+
           
-          const data = response.data; // Ensure data is properly assigned
+// Ensure data is properly assigned
           if (!data.routes || !data.routes[0] || !data.routes[0].legs) {
               addNotification("❌ Route data incomplete!", "danger");
               return;
@@ -464,6 +469,7 @@ const fetchGeocode = async (address) => {
 
     return validStations.reduce((closest, station) => {
         const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
+
         const distance = haversineDistance(coords, stationCoords);
 
         return distance < closest.distance ? { ...station, distance } : closest;
@@ -492,7 +498,7 @@ const calculateRoute = async () => {
   }
 
 
-  if (!startCoords || !startCoords.lat || !startCoords.lng) {
+  if (!startCoords || typeof startCoords.lat !== "number" || typeof startCoords.lng !== "number") {
     console.error("⚠️ Invalid start location:", startCoords);
     addNotification("⚠️ Unable to determine your location!", "warning");
     return;
@@ -509,8 +515,9 @@ const calculateRoute = async () => {
     const data = await fetchDirections(startCoords, nearestStation);
     if (!data) return;
 
-    if (data.status === "OK") {
+    if (data && data.status === "OK") {
       setDirections(data);
+  
       const routeDistance = data.routes[0].legs[0].distance.value / 1000;
       const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
 
@@ -536,7 +543,7 @@ const calculateRoute = async () => {
 
 
 const calculateActualTravelTime = () => {
-  if (!directions?.routes?.[0]?.legs) {
+  if (!directions?.routes?.[0]?.legs)  {
       addNotification("⚠️ Please calculate a route first!", "warning");
       return;
   }
@@ -554,11 +561,26 @@ const calculateActualTravelTime = () => {
   const handlePlaceChanged = () => {
     if (startLocationRef.current) {
       const place = startLocationRef.current.getPlace();
-      if (place?.geometry) {
-        setStartLocation(place.formatted_address);
+      if (place && place.geometry) {
+          setStartLocation(place.formatted_address);
       }
-    }
+  }
+  
   };
+
+  const loadGoogleMapsScript = () => {
+    if (window.google?.maps) return; // Prevent multiple loads
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => console.log("✅ Google Maps API Loaded");
+    document.body.appendChild(script);
+};
+loadGoogleMapsScript();
+
+  
   
   
   
@@ -627,9 +649,15 @@ const calculateActualTravelTime = () => {
 <Button variant="success" className="ml-2 mt-2" onClick={calculateActualTravelTime}>
     Log Travel Time
 </Button>
-<Button variant="info" className="ml-2 mt-2" onClick={() => setTrackLocation((prev) => !prev)}>
+<Button
+    variant="info"
+    className="ml-2 mt-2"
+    onClick={() => setTrackLocation((prev) => !prev)}
+    disabled={loading}
+>
     {trackLocation ? "Disable" : "Enable"} Live Tracking
 </Button>
+
 
 
             </Form>
@@ -652,13 +680,14 @@ const calculateActualTravelTime = () => {
   zoom={12}
   center={userLocation || center}
   onLoad={(map) => {
-    setMap(handleMapLoad);
+    setMap(map);
     window.addEventListener("resize", () => {
-      if (userLocation) {
-        map.setCenter(userLocation);
-      }
+        if (userLocation) {
+            map.setCenter(userLocation);
+        }
     });
-  }}
+}}
+
 >
   {directions && <DirectionsRenderer directions={directions} />}
   {chargingStations.map((station, index) => (
