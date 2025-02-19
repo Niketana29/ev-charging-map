@@ -1,6 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const dotenv = require("dotenv");
+const app = express();
 
 require("dotenv").config({ path: ".env(backend)" }); // Ensure correct environment file is used
 

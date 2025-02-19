@@ -5,6 +5,7 @@ import {
   InfoWindow,
   DirectionsRenderer,
   Autocomplete,
+  DirectionsService,
   useLoadScript,
 } from "@react-google-maps/api";
 import { Button, Form, Container, Row, Col } from "react-bootstrap";
@@ -485,7 +486,6 @@ const calculateRoute = async () => {
   console.log("🚀 Calculating Route...");
   console.log("📍 Search Type:", searchType);
   console.log("📍 Start Location (Before Geocoding):", startLocation);
-  
 
   if (!vehicleType) {
     addNotification("⚠️ Please select a vehicle type!", "warning");
@@ -499,48 +499,54 @@ const calculateRoute = async () => {
     startCoords = userLocation || await fetchUserLocation();
   }
 
-
   if (!startCoords || typeof startCoords.lat !== "number" || typeof startCoords.lng !== "number") {
     console.error("⚠️ Invalid start location:", startCoords);
     addNotification("⚠️ Unable to determine your location!", "warning");
     return;
-}
+  }
 
-  
+  console.log("✅ Start Coordinates:", startCoords);
 
   const nearestStation = getNearestStation(startCoords);
-  if (!nearestStation) return;
+  if (!nearestStation) {
+    addNotification("⚠️ No nearby charging station found!", "warning");
+    return;
+  }
 
   console.log("📍 Destination (Charging Station):", nearestStation);
+
   setLoading(true);
   try {
     const data = await fetchDirections(startCoords, nearestStation);
-    if (!data) return;
 
-    if (data && data.status === "OK") {
-      setDirections(data);
-  
-      const routeDistance = data.routes[0].legs[0].distance.value / 1000;
-      const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
-
-      setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
-      setStoredBatteryUsage(batteryUsage);
-      setStoredTravelTime(data.routes[0].legs[0].duration.text);
-
-      addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
-      addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
-
-      setCenter(startCoords);
-    } else {
+    if (!data || data.status !== "OK") {
+      console.error("❌ Failed to fetch route:", data);
       addNotification("❌ Failed to fetch route. Try again.", "danger");
+      return;
     }
+
+    console.log("✅ Directions API Response:", data);
+    setDirections(data); // ✅ Ensure DirectionsRenderer receives valid data
+
+    const routeDistance = data.routes[0].legs[0].distance.value / 1000;
+    const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
+
+    setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
+    setStoredBatteryUsage(batteryUsage);
+    setStoredTravelTime(data.routes[0].legs[0].duration.text);
+
+    addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
+    addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
+
+    setCenter(startCoords);
   } catch (error) {
     console.error("❌ Error fetching directions:", error);
     addNotification("❌ Error fetching route data. Check API configuration.", "danger");
-  }finally{
+  } finally {
     setLoading(false);
   }
 };
+
 
 
 

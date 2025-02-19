@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import NotificationsSidebar from "./components/NotificationsSidebar";
 import './App.css';
 import BatteryIndicator from "./components/BatteryIndicator";
@@ -9,6 +9,14 @@ const App = () => {
     const [batteryLevel, setBatteryLevel] = useState(80);  // Example default level
     const [estimatedTime, setEstimatedTime] = useState('');
 
+    useEffect(() => {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+      }, []);
+      
     const addNotification = (message) => {
         setNotifications((prev) => [...prev, { id: Date.now(), text: message }]);
     };
