@@ -16,6 +16,8 @@ import BatteryIndicator from "./BatteryIndicator";  // Import Battery Indicator
 import BatteryGraph from "./BatteryGraph";  // Import Battery Graph
 import loadExcelData from "../loadExcelData"; // Import the function
 import NotificationsSidebar from "./NotificationsSidebar";
+import { useLoadScript } from "@react-google-maps/api";
+
 
 
 
@@ -191,6 +193,13 @@ useEffect(() => {
     if (watchId) navigator.geolocation.clearWatch(watchId);
   }
 }, [trackLocation]);
+
+
+const { isLoaded } = useLoadScript({
+  googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+  libraries: ["places"], // Add any required libraries
+});
+
 
 
   if (!isLoaded) return <div>Loading Google Maps...</div>;
