@@ -69,61 +69,49 @@ const EVChargingMap = () => {
   const [storedBatteryUsage, setStoredBatteryUsage] = useState(null);
   const [storedTravelTime, setStoredTravelTime] = useState(null);
   const [loading, setLoading] = useState(false);
+  
 
 
 
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition(
+// Get user location on mount
+useEffect(() => {
+  navigator.geolocation.getCurrentPosition(
       (position) => {
-        if (!position || !position.coords) {
-          console.error("Geolocation data is undefined");
-          return;
-        }
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+          if (!position || !position.coords) {
+              console.error("Geolocation data is undefined");
+              return;
+          }
+          setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+          });
       },
       (error) => {
-        console.error("Error getting location:", error);
+          console.error("Error getting location:", error);
       },
       { enableHighAccuracy: true }
-    );
-    
+  );
 }, []);
 
-
-  
-  if (!isLoaded) return <div>Loading Google Maps...</div>;
-  
-
-  console.log("Google Maps API Key:", process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
-
-  const backendApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY;
-
-
-
-
-
+// Handle startLocation validation
 useEffect(() => {
   if (!startLocation) {
       console.error("Invalid start location");
-      return;
   }
 }, [startLocation]);
 
-
 // Remove notifications after 5 seconds
 useEffect(() => {
-    if (notifications.length === 0) return;
+  if (notifications.length === 0) return;
 
-    const timer = setTimeout(() => {
-        setNotifications((prev) => prev.slice(1));
-    }, 5000);
+  const timer = setTimeout(() => {
+      setNotifications((prev) => prev.slice(1));
+  }, 5000);
 
-    return () => clearTimeout(timer);
+  return () => clearTimeout(timer);
 }, [notifications]);
 
+// Handle window resize and adjust map center
 useEffect(() => {
   const handleResize = () => {
       if (map) {
@@ -135,92 +123,70 @@ useEffect(() => {
   return () => window.removeEventListener("resize", handleResize);
 }, [map, center]);
 
-
-// Function to add notifications
-const addNotification = (message, type = "info") => {
-    setNotifications((prev) => [...prev, { message, type }]);
-};
-
-
-
- 
+// Simulate battery drain (for testing)
 useEffect(() => {
-  // Simulate battery drain (for testing)
   const interval = setInterval(() => {
-    setBatteryLevel((prev) => (prev > 0 ? prev - 1 : 0));
-  }, 3000); // Decrease battery every 3 seconds
+      setBatteryLevel((prev) => (prev > 0 ? prev - 1 : 0));
+  }, 3000);
 
   return () => clearInterval(interval);
 }, []);
 
+// Ensure the map is updated when user location changes
 useEffect(() => {
   if (map && userLocation) {
       map.setCenter(userLocation);
   }
 }, [map, userLocation]);
 
-const handleMapLoad = (mapInstance) => {
-  setMap(mapInstance);
-  window.addEventListener("resize", () => {
-    if (map && userLocation) {
-        map.setCenter(userLocation);
-    }
-});
-
-};
-
-
-
-useEffect(() => {
-  if (!window.google) return; // Ensure Google API is loaded
-  const input = document.getElementById("destination-input");
-  if (input) {
-    const autocomplete = new window.google.maps.places.Autocomplete(input);
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (place.geometry && place.geometry.location) {
-        setDestination(place.geometry.location);
-      }
-    });
-  }
-}, []);
+// Handle Google Maps autocomplete
 /* global google */
 useEffect(() => {
-  if (window.google) {
-    const service = new window.google.maps.places.AutocompleteService();
+  if (!window.google) return; // Ensure Google API is loaded
+
+  const input = document.getElementById("destination-input");
+  if (input) {
+      const autocomplete = new window.google.maps.places.Autocomplete(input);
+      autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (place.geometry && place.geometry.location) {
+              setDestination({
+                  lat: place.geometry.location.lat(),
+                  lng: place.geometry.location.lng(),
+              });
+          }
+      });
   }
 }, []);
 
 
+// Google Maps autocomplete service (seems unused)
+useEffect(() => {
+  if (window.google) {
+      new window.google.maps.places.AutocompleteService();
+  }
+}, []);
 
-
+// Load Excel data and handle location tracking
 useEffect(() => {
   const fetchData = async () => {
-    try {
-      const data = await loadExcelData(); // Load Excel file
-      setChargingStations(data); // Store the stations in state
-    } catch (error) {
-      console.error("Error loading Excel data:", error);
-    }
+      try {
+          const data = await loadExcelData(); // Load Excel file
+          setChargingStations(data);
+      } catch (error) {
+          console.error("Error loading Excel data:", error);
+      }
   };
 
-  // Call function to load data
+  fetchData();
 
   if (trackLocation) {
-    trackUserLocation();
-  } else {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
+      trackUserLocation();
+  } else if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
   }
-}, [trackLocation]);
-
-
-
-
-
-
-  
-  
-
+}, [trackLocation]); // Removed unnecessary isLoaded check
+                
   const BatteryIndicator = ({ batteryLevel }) => {
     return (
       <div>
@@ -239,6 +205,10 @@ useEffect(() => {
       </div>
     );
   };
+
+  const addNotification = (message, type = "info") => {
+    setNotifications((prev) => [...prev, { message, type }]);
+};
   
   
 
