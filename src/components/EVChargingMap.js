@@ -133,10 +133,11 @@ useEffect(() => {
 const handleMapLoad = (mapInstance) => {
   setMap(mapInstance);
   window.addEventListener("resize", () => {
-      if (userLocation) {
-          mapInstance.setCenter(userLocation);
-      }
-  });
+    if (map && userLocation) {
+        map.setCenter(userLocation);
+    }
+});
+
 };
 
 
@@ -372,11 +373,12 @@ const fetchGeocode = async (address) => {
     const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
                 params: {
                     address: encodeURIComponent(address),
-                    key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+                    key: encodeURIComponent(process.env.REACT_APP_GOOGLE_MAPS_API_KEY)
+,
                 },
             });
 
-            if (!response.data || response.data.status !== "OK") {
+            if (!response.data || response.data.status !== "OK" || !response.data.results.length) {
               console.error("❌ Geocoding API Error:", response.data.status);
               addNotification("❌ Invalid location. Try again!", "danger");
               return null;
@@ -412,10 +414,11 @@ const fetchGeocode = async (address) => {
               }
           );
           const data = response.data;
-          if (!data || data.status !== "OK") {
-            addNotification("❌ Failed to fetch route. Try again.", "danger");
+          if (!data || data.status !== "OK" || !data.routes.length || !data.routes[0].legs.length) {
+            addNotification("❌ Route data incomplete!", "danger");
             return;
         }
+        
         
         // Ensure data is properly assigned
         if (!data.routes || !data.routes[0] || !data.routes[0].legs) {
@@ -460,8 +463,10 @@ const fetchGeocode = async (address) => {
     }
 
     const validStations = chargingStations.filter(station =>
-      station.latitude && station.longitude && station["Supported Vehicle Types"]?.includes(vehicleType)
+      station.latitude && station.longitude && station["Supported Vehicle Types"]?.includes(vehicleType) &&
+      !isNaN(parseFloat(station.latitude)) && !isNaN(parseFloat(station.longitude))
   );
+  
   
 
     if (!validStations.length) {
@@ -499,7 +504,8 @@ const calculateRoute = async () => {
     startCoords = userLocation || await fetchUserLocation();
   }
 
-  if (!startCoords || typeof startCoords.lat !== "number" || typeof startCoords.lng !== "number") {
+  if (!startCoords || isNaN(startCoords.lat) || isNaN(startCoords.lng)) {
+
     console.error("⚠️ Invalid start location:", startCoords);
     addNotification("⚠️ Unable to determine your location!", "warning");
     return;
@@ -566,25 +572,25 @@ const calculateActualTravelTime = () => {
   
   
   
-  const handlePlaceChanged = () => {
-    if (startLocationRef.current) {
+const handlePlaceChanged = () => {
+  if (startLocationRef.current) {
       const place = startLocationRef.current.getPlace();
-      if (place && place.geometry) {
+      if (place?.geometry?.location) {
           setStartLocation(place.formatted_address);
       }
   }
-  
-  };
+};
+
 
   const loadGoogleMapsScript = () => {
-    if (window.google?.maps) return; // Prevent multiple loads
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => console.log("✅ Google Maps API Loaded");
-    document.body.appendChild(script);
+    if (!window.google) {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    
 };
 loadGoogleMapsScript();
 
@@ -691,10 +697,11 @@ loadGoogleMapsScript();
   onLoad={(map) => {
     setMap(map);
     window.addEventListener("resize", () => {
-        if (userLocation) {
-            map.setCenter(userLocation);
-        }
-    });
+      if (map && userLocation) {
+          map.setCenter(userLocation);
+      }
+  });
+  
 }}
 
 >
