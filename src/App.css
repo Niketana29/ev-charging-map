@@ -20,6 +20,7 @@ body {
   padding: 20px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
+  max-height: 100vh; /* Ensures scrollable sidebar if content overflows */
 }
 
 /* Input Fields & Buttons */
@@ -46,16 +47,15 @@ button:hover {
 
 /* Map Container */
 .map-container {
-  width: 100%;
-  height: 400px;
+  flex: 1; /* Allows map to take up remaining space */
+  height: calc(100vh - 60px); /* Adjusts height dynamically */
 }
 
 @media (max-width: 768px) {
   .map-container {
-    height: 300px;
+    height: 50vh !important;
   }
 }
-
 
 /* Battery Graph */
 .battery-graph {
@@ -72,6 +72,12 @@ button:hover {
   font-size: 14px;
   font-weight: bold;
   padding: 5px;
+}
+
+/* Low Battery Indicator */
+.battery-indicator.low {
+  background: red !important;
+  color: white;
 }
 
 /* Notification Sidebar */
@@ -103,12 +109,15 @@ button:hover {
 
   .sidebar {
     width: 100%;
+    height: auto;
   }
 
-  .map-container {
-    height: 60vh;
+  .notification-sidebar {
+    width: 100%;
+    height: auto;
   }
 }
+
 .battery-indicator-container {
   width: 300px;
   margin: 10px auto;

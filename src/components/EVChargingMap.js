@@ -6,7 +6,7 @@ import {
   DirectionsRenderer,
   Autocomplete,
   DirectionsService,
-  useLoadScript,
+  LoadScript,
 } from "@react-google-maps/api";
 import { Button, Form, Container, Row, Col } from "react-bootstrap";
 import axios from "axios";
@@ -19,7 +19,7 @@ import NotificationsSidebar from "./NotificationsSidebar";
 
 
 
-
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 const libraries = ["places"];
 const mapContainerStyle = {
   width: "100%",
@@ -37,10 +37,6 @@ const batteryConsumptionRates = {
 
 
 const EVChargingMap = () => {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries,
-});
 
   const [map, setMap] = useState(null);
   const [directions, setDirections] = useState(null);
@@ -70,11 +66,7 @@ const EVChargingMap = () => {
 
 
   const startLocationRef = useRef(null);
-  const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-  if (!GOOGLE_MAPS_API_KEY) {
-    console.error("❌ Google Maps API Key is missing!");
-    addNotification("⚠️ API Key issue detected!", "danger");
-}
+  
 
   console.log("Google Maps API Key:", process.env.REACT_APP_GOOGLE_MAPS_API_KEY);
 
@@ -84,17 +76,21 @@ const EVChargingMap = () => {
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
         (position) => {
-            setUserLocation({
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-            });
+            const { latitude, longitude } = position.coords;
+            setStartLocation({ lat: latitude, lng: longitude });
         },
-        (error) => {
-            console.error("Geolocation Error:", error);
-            addNotification("⚠️ Location access denied!", "warning");
-        }
+        (error) => console.error("Error getting location:", error)
     );
 }, []);
+
+
+useEffect(() => {
+  if (!startLocation) {
+      console.error("Invalid start location");
+      return;
+  }
+}, [startLocation]);
+
 
 // Remove notifications after 5 seconds
 useEffect(() => {
@@ -106,6 +102,18 @@ useEffect(() => {
 
     return () => clearTimeout(timer);
 }, [notifications]);
+
+useEffect(() => {
+  const handleResize = () => {
+      if (map) {
+          map.setCenter(center);
+      }
+  };
+
+  window.addEventListener("resize", handleResize);
+  return () => window.removeEventListener("resize", handleResize);
+}, [map, center]);
+
 
 // Function to add notifications
 const addNotification = (message, type = "info") => {
@@ -652,6 +660,7 @@ const loadGoogleMapsScript = () => {
     onChange={(e) => setBatteryLevel(parseInt(e.target.value))}
   />
 </Form.Group>
+
 <Button variant="primary" onClick={calculateRoute} className="mt-2" disabled={loading}>
     {loading ? "Calculating..." : "Calculate Route"}
 </Button>
@@ -686,6 +695,7 @@ const loadGoogleMapsScript = () => {
             {/* Right Side: Notifications Sidebar */}
             <NotificationsSidebar notifications={notifications} />
             </div>
+            <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY} libraries={['places']} />
         
             <GoogleMap
   mapContainerStyle={mapContainerStyle}
