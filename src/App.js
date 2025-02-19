@@ -3,6 +3,7 @@ import NotificationsSidebar from "./components/NotificationsSidebar";
 import './App.css';
 import BatteryIndicator from "./components/BatteryIndicator";
 import EVChargingMap from "./components/EVChargingMap";
+import { LoadScript } from "@react-google-maps/api";
 
 const App = () => {
     const [notifications, setNotifications] = useState([]);
