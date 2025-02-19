@@ -373,8 +373,7 @@ const fetchGeocode = async (address) => {
     const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
                 params: {
                     address: encodeURIComponent(address),
-                    key: encodeURIComponent(process.env.REACT_APP_GOOGLE_MAPS_API_KEY)
-,
+                    key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
                 },
             });
 
@@ -409,30 +408,24 @@ const fetchGeocode = async (address) => {
                       origin: `${startCoords.lat},${startCoords.lng}`,
                       destination: `${nearestStation.latitude},${nearestStation.longitude}`,
                       mode: "driving",
-                      key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+                      key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY
                   },
               }
           );
           const data = response.data;
           if (!data || data.status !== "OK" || !data.routes.length || !data.routes[0].legs.length) {
+            console.error("❌ Invalid Directions API response:", data);
             addNotification("❌ Route data incomplete!", "danger");
-            return;
-        }
-        
-        
-        // Ensure data is properly assigned
-        if (!data.routes || !data.routes[0] || !data.routes[0].legs) {
-            addNotification("❌ Route data incomplete!", "danger");
-            return;
-        }
-        
-          // Now safely use `data`
+            return null;
+          }
           setDirections(data);
+          
 
         const routeLeg = data.routes[0].legs[0];
           
-        const routeDistance = routeLeg.distance.value / 1000;
-        const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
+        const routeDistance = data.routes[0].legs[0].distance.value / 1000;
+        const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType] || 0;
+        
         
         setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
         setStoredBatteryUsage(batteryUsage);
@@ -474,13 +467,14 @@ const fetchGeocode = async (address) => {
         return null;
     }
 
-    return validStations.reduce((closest, station) => {
-        const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
-
-        const distance = haversineDistance(coords, stationCoords);
-
-        return distance < closest.distance ? { ...station, distance } : closest;
-    }, { distance: Infinity });
+    const nearest = validStations.reduce((closest, station) => {
+      const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
+      const distance = haversineDistance(coords, stationCoords);
+      return distance < closest.distance ? { ...station, distance } : closest;
+  }, { distance: Infinity });
+  
+  return nearest.distance === Infinity ? null : nearest;
+  
 };
 
 
@@ -528,8 +522,11 @@ const calculateRoute = async () => {
     if (!data || data.status !== "OK") {
       console.error("❌ Failed to fetch route:", data);
       addNotification("❌ Failed to fetch route. Try again.", "danger");
+      setLoading(false);
       return;
     }
+    setDirections(data);
+    
 
     console.log("✅ Directions API Response:", data);
     setDirections(data); // ✅ Ensure DirectionsRenderer receives valid data
@@ -574,25 +571,25 @@ const calculateActualTravelTime = () => {
   
 const handlePlaceChanged = () => {
   if (startLocationRef.current) {
-      const place = startLocationRef.current.getPlace();
-      if (place?.geometry?.location) {
-          setStartLocation(place.formatted_address);
-      }
+    const place = startLocationRef.current.getPlace();
+    if (place?.geometry?.location) {
+      setStartLocation(place.formatted_address || place.name || "");
+    }
   }
 };
 
 
-  const loadGoogleMapsScript = () => {
-    if (!window.google) {
-      const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-    
+
+const loadGoogleMapsScript = () => {
+  if (!window.google && !document.querySelector('script[src*="maps.googleapis.com"]')) {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }
 };
-loadGoogleMapsScript();
+
 
   
   
@@ -698,12 +695,11 @@ loadGoogleMapsScript();
     setMap(map);
     window.addEventListener("resize", () => {
       if (map && userLocation) {
-          map.setCenter(userLocation);
+        setTimeout(() => map.setCenter(userLocation), 500);
       }
-  });
+    });
+  }}
   
-}}
-
 >
   {directions && <DirectionsRenderer directions={directions} />}
   {chargingStations.map((station, index) => (
