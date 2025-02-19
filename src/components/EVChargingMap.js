@@ -380,6 +380,7 @@ const fetchGeocode = async (address) => {
               addNotification("❌ Invalid location. Try again!", "danger");
               return null;
           }
+          
           return response.data.results[0].geometry.location;
           
         } catch (error) {
@@ -410,18 +411,17 @@ const fetchGeocode = async (address) => {
               }
           );
           const data = response.data;
-if (!data || data.status !== "OK") {
-    addNotification("❌ Failed to fetch route. Try again.", "danger");
-    return;
-}
-
-          
-// Ensure data is properly assigned
-          if (!data.routes || !data.routes[0] || !data.routes[0].legs) {
-              addNotification("❌ Route data incomplete!", "danger");
-              return;
-          }
-          
+          if (!data || data.status !== "OK") {
+            addNotification("❌ Failed to fetch route. Try again.", "danger");
+            return;
+        }
+        
+        // Ensure data is properly assigned
+        if (!data.routes || !data.routes[0] || !data.routes[0].legs) {
+            addNotification("❌ Route data incomplete!", "danger");
+            return;
+        }
+        
           // Now safely use `data`
           setDirections(data);
 
@@ -459,8 +459,9 @@ if (!data || data.status !== "OK") {
     }
 
     const validStations = chargingStations.filter(station =>
-        station.latitude && station.longitude && station["Supported Vehicle Types"]?.includes(vehicleType)
-    );
+      station.latitude && station.longitude && station["Supported Vehicle Types"]?.includes(vehicleType)
+  );
+  
 
     if (!validStations.length) {
         addNotification("⚠️ No stations support your vehicle type!", "warning");
@@ -484,6 +485,7 @@ const calculateRoute = async () => {
   console.log("🚀 Calculating Route...");
   console.log("📍 Search Type:", searchType);
   console.log("📍 Start Location (Before Geocoding):", startLocation);
+  
 
   if (!vehicleType) {
     addNotification("⚠️ Please select a vehicle type!", "warning");
@@ -641,7 +643,6 @@ loadGoogleMapsScript();
     onChange={(e) => setBatteryLevel(parseInt(e.target.value))}
   />
 </Form.Group>
-
 <Button variant="primary" onClick={calculateRoute} className="mt-2" disabled={loading}>
     {loading ? "Calculating..." : "Calculate Route"}
 </Button>
@@ -649,6 +650,7 @@ loadGoogleMapsScript();
 <Button variant="success" className="ml-2 mt-2" onClick={calculateActualTravelTime}>
     Log Travel Time
 </Button>
+
 <Button
     variant="info"
     className="ml-2 mt-2"
@@ -657,6 +659,7 @@ loadGoogleMapsScript();
 >
     {trackLocation ? "Disable" : "Enable"} Live Tracking
 </Button>
+
 
 
 

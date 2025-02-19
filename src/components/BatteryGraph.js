@@ -7,14 +7,18 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 
 const BatteryGraph = ({ batteryLevel }) => {
   const [batteryData, setBatteryData] = useState([]);
+  const [timeLabels, setTimeLabels] = useState([]);
 
   useEffect(() => {
-    // Update battery data with a rolling window of last 10 values
+    const currentTime = new Date().toLocaleTimeString(); // Capture current time
+
+    // Ensure only the last 10 entries are stored
     setBatteryData((prevData) => [...prevData.slice(-9), batteryLevel]);
+    setTimeLabels((prevLabels) => [...prevLabels.slice(-9), currentTime]); // Store timestamps
   }, [batteryLevel]);
 
   const data = {
-    labels: batteryData.map((_, index) => `T${index + 1}`),
+    labels: timeLabels, // Use timestamps instead of generic T1, T2, etc.
     datasets: [
       {
         label: "Battery Level (%)",
@@ -25,29 +29,28 @@ const BatteryGraph = ({ batteryLevel }) => {
       },
     ],
   };
-  
-    const options = {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          max: 100,
-        },
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
       },
-      plugins: {
-        legend: {
-          display: false,
-        },
+    },
+    plugins: {
+      legend: {
+        display: false,
       },
-    };
-  
-    return (
-      <div style={{ height: "200px", width: "100%", margin: "10px 0" }}>
-        <Line data={data} options={options} />
-      </div>
-    );
+    },
   };
 
+  return (
+    <div style={{ height: "200px", width: "100%", margin: "10px 0" }}>
+      <Line data={data} options={options} />
+    </div>
+  );
+};
 
 export default BatteryGraph;

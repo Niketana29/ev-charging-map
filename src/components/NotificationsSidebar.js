@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const NotificationsSidebar = ({ notifications, clearNotifications }) => {
+const NotificationsSidebar = ({ notifications, clearNotifications, removeNotification }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -20,7 +20,7 @@ const NotificationsSidebar = ({ notifications, clearNotifications }) => {
             boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
             padding: "20px",
             overflowY: "auto",
-            transition: "right 0.3s ease-in-out",
+            transition: "right 0.4s ease-in-out, box-shadow 0.2s ease-in-out",
             zIndex: 1000
         }}>
             {/* Sidebar Toggle Button */}
@@ -33,7 +33,8 @@ const NotificationsSidebar = ({ notifications, clearNotifications }) => {
                     background: "#007bff",
                     color: "white",
                     border: "none",
-                    padding: "8px 12px",
+                    padding: "10px 15px",
+                    fontSize: "16px",
                     cursor: "pointer",
                     borderRadius: "5px",
                     boxShadow: "0px 2px 5px rgba(0,0,0,0.3)"
@@ -73,9 +74,24 @@ const NotificationsSidebar = ({ notifications, clearNotifications }) => {
                         padding: "10px", 
                         margin: "5px 0",
                         borderRadius: "5px",
-                        boxShadow: "0px 1px 5px rgba(0,0,0,0.1)"
+                        boxShadow: "0px 1px 5px rgba(0,0,0,0.1)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
                     }}>
-                        {notif.text}
+                        <span>{notif.text}</span>
+                        <button 
+                            onClick={() => removeNotification(notif.id)}
+                            style={{
+                                background: "transparent",
+                                border: "none",
+                                color: "#dc3545",
+                                cursor: "pointer",
+                                fontSize: "16px"
+                            }}
+                        >
+                            ❌
+                        </button>
                     </div>
                 ))
             )}

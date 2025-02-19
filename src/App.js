@@ -17,47 +17,46 @@ const App = () => {
         setNotifications([]);
     };
 
+    const removeNotification = (id) => {
+        setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+    };
+
     return (
         <div className="app-container" style={{ display: "flex", flexDirection: "row", height: "100vh" }}>
             {/* Left Section: Map & Controls */}
             <div style={{ flex: 1, padding: "20px" }}>
-                <EVChargingMap addNotification={addNotification} />
+                <EVChargingMap addNotification={addNotification} setEstimatedTime={setEstimatedTime} />
                 <BatteryIndicator batteryLevel={batteryLevel} />
 
                 {/* Buttons to trigger notifications dynamically */}
+                {/* Display Estimated Travel Time */}
+                {estimatedTime && (
+                    <p style={{ fontSize: "16px", fontWeight: "bold", margin: "10px 0", color: "#333" }}>
+                        Estimated Travel Time: {estimatedTime} mins
+                    </p>
+                )}
+
                 <button 
-                    onClick={() => addNotification(`Estimated Battery Consumption: ${(Math.random() * 0.5).toFixed(2)} kWh`)}
-                    style={{
-                        background: "#007bff",
-                        color: "white",
-                        border: "none",
-                        padding: "10px",
-                        borderRadius: "5px",
-                        cursor: "pointer",
-                        margin: "10px 5px"
-                    }}
+                    onClick={() => addNotification(`⚡ Battery Consumption Estimate: ${(Math.random() * 0.5).toFixed(2)} kWh`)}
+                    style={{ background: "#007bff", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
                 >
-                    Show Battery Info
+                Show Battery Info
                 </button>
 
                 <button 
-                    onClick={() => addNotification(`Actual Travel Time: ${Math.floor(Math.random() * 20) + 5} mins`)}
-                    style={{
-                        background: "#28a745",
-                        color: "white",
-                        border: "none",
-                        padding: "10px",
-                        borderRadius: "5px",
-                        cursor: "pointer",
-                        margin: "10px 5px"
-                    }}
+                    onClick={() => addNotification(`🕒 Estimated Travel Time: ${estimatedTime || Math.floor(Math.random() * 20) + 5} mins`)}
+                    style={{ background: "#28a745", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
                 >
-                    Show Travel Time
+                Show Travel Time
                 </button>
+
             </div>
 
-            {/* Right Section: Notifications Sidebar */}
-            <NotificationsSidebar notifications={notifications} clearNotifications={clearNotifications} />
+            <NotificationsSidebar 
+                notifications={notifications} 
+                clearNotifications={clearNotifications} 
+                removeNotification={removeNotification} 
+            />
         </div>
     );
 };

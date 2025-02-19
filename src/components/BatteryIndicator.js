@@ -7,14 +7,16 @@ const BatteryIndicator = ({ batteryLevel }) => {
       <ProgressBar 
         now={batteryLevel} 
         label={`${batteryLevel}%`} 
-        variant={batteryLevel < 20 ? "danger" : "success"} 
+        variant={batteryLevel < 20 ? "danger" : batteryLevel < 50 ? "warning" : "success"}
+ 
       />
 
-      {batteryLevel < 20 && (
-        <Alert variant="danger" className="battery-alert" style={{ marginTop: "10px" }}>
-          ⚠️ Warning: Battery level is low! Find a charging station soon.
-        </Alert>
-      )}
+    {batteryLevel < 20 && (
+      <Alert variant="danger" className="battery-alert" style={{ marginTop: "10px", fontWeight: "bold" }}>
+      ⚠️ Critical Battery! Please locate a charging station immediately.
+      </Alert>
+    )}
+
     </div>
   );
 };
