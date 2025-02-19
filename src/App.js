@@ -1,71 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from "react";
+import { useLoadScript } from "@react-google-maps/api";
 import NotificationsSidebar from "./components/NotificationsSidebar";
-import './App.css';
 import BatteryIndicator from "./components/BatteryIndicator";
 import EVChargingMap from "./components/EVChargingMap";
-import { LoadScript } from "@react-google-maps/api";
+import "./App.css";
+
+const libraries = ["places"];
 
 const App = () => {
-    const [notifications, setNotifications] = useState([]);
-    const [batteryLevel, setBatteryLevel] = useState(80);  // Example default level
-    const [estimatedTime, setEstimatedTime] = useState('');
+    const { isLoaded } = useLoadScript({
+        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+        libraries,
+    });
 
-    useEffect(() => {
-        const script = document.createElement("script");
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-        script.async = true;
-        script.defer = true;
-        document.body.appendChild(script);
-      }, []);
-      
+    const [notifications, setNotifications] = useState([]);
+    const [batteryLevel, setBatteryLevel] = useState(80);
+    const [estimatedTime, setEstimatedTime] = useState("");
+
     const addNotification = (message) => {
         setNotifications((prev) => [...prev, { id: Date.now(), text: message }]);
     };
 
-    const clearNotifications = () => {
-        setNotifications([]);
-    };
+    const clearNotifications = () => setNotifications([]);
+    const removeNotification = (id) => setNotifications((prev) => prev.filter((n) => n.id !== id));
 
-    const removeNotification = (id) => {
-        setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-    };
+    if (!isLoaded) return <p>Loading Google Maps...</p>;
 
     return (
         <div className="app-container" style={{ display: "flex", flexDirection: "row", height: "100vh" }}>
-            {/* Left Section: Map & Controls */}
             <div style={{ flex: 1, padding: "20px" }}>
                 <EVChargingMap addNotification={addNotification} setEstimatedTime={setEstimatedTime} />
                 <BatteryIndicator batteryLevel={batteryLevel} />
 
-                {/* Buttons to trigger notifications dynamically */}
-                {/* Display Estimated Travel Time */}
                 {estimatedTime && (
                     <p style={{ fontSize: "16px", fontWeight: "bold", margin: "10px 0", color: "#333" }}>
                         Estimated Travel Time: {estimatedTime} mins
                     </p>
                 )}
 
-                <button 
+                <button
                     onClick={() => addNotification(`⚡ Battery Consumption Estimate: ${(Math.random() * 0.5).toFixed(2)} kWh`)}
                     style={{ background: "#007bff", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
                 >
-                Show Battery Info
+                    Show Battery Info
                 </button>
 
-                <button 
+                <button
                     onClick={() => addNotification(`🕒 Estimated Travel Time: ${estimatedTime || Math.floor(Math.random() * 20) + 5} mins`)}
                     style={{ background: "#28a745", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
                 >
-                Show Travel Time
+                    Show Travel Time
                 </button>
-
             </div>
 
-            <NotificationsSidebar 
-                notifications={notifications} 
-                clearNotifications={clearNotifications} 
-                removeNotification={removeNotification} 
-            />
+            <NotificationsSidebar notifications={notifications} clearNotifications={clearNotifications} removeNotification={removeNotification} />
         </div>
     );
 };

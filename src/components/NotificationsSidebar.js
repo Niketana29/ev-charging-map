@@ -6,8 +6,11 @@ const NotificationsSidebar = ({ notifications, clearNotifications, removeNotific
     useEffect(() => {
         if (notifications.length > 0) {
             setIsOpen(true);
+        } else {
+            setIsOpen(false); // Auto-close sidebar when no notifications
         }
     }, [notifications]);
+    
 
     return (
         <div style={{ 

@@ -1,106 +1,83 @@
+require("dotenv").config({ path: ".env.backend" }); // Rename file for better compatibility
 const express = require("express");
 const axios = require("axios");
-const dotenv = require("dotenv");
-const app = express();
-
-require("dotenv").config({ path: ".env(backend)" }); // Ensure correct environment file is used
-
-
 const cors = require("cors");
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+const googleMapsApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY; // Store API key once
+
+app.use(express.json()); // Ensure JSON body parsing is enabled
+
 app.use(cors({
-    origin: ["http://localhost:3000", "https://evatlas.vercel.app"], // Allow both local and deployed frontend
-    methods: ["GET", "POST"], // Restrict allowed methods
-    credentials: true, // Allow credentials (if needed)
+    origin: ["http://localhost:3000", "https://evatlas.vercel.app"],
+    methods: ["GET", "POST"],
 }));
 
-
-const googleMapsApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY; // Ensure correct variable name
-
-
-// Fetch Battery Status
+// ✅ Fetch Battery Status
 app.get("/battery-status", (req, res) => {
-  const batteryLevel = Math.floor(Math.random() * 100); // Simulated battery level
-  res.json({ level: batteryLevel });
+    const batteryLevel = Math.floor(Math.random() * 100);
+    res.json({ level: batteryLevel });
 });
 
+// ✅ Geocoding API
 app.get("/geocode", async (req, res) => {
-  try {
-      const { address } = req.query;
-      if (!address) {
-          return res.status(400).json({ error: "❌ Address parameter is required" });
-      }
+    try {
+        const { address } = req.query;
+        if (!address) return res.status(400).json({ error: "❌ Address parameter is required" });
 
-      const response = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
-          params: {
-              address,
-              key: googleMapsApiKey,
-          },
-      });
+        const { data } = await axios.get("https://maps.googleapis.com/maps/api/geocode/json", {
+            params: { address, key: googleMapsApiKey },
+        });
 
-      if (response.data.status !== "OK") {
-          return res.status(400).json({ error: "❌ Geocoding failed", details: response.data.status });
-      }
+        if (data.status !== "OK") {
+            return res.status(400).json({ error: "❌ Geocoding failed", details: data.status });
+        }
 
-      res.json(response.data);
-  } catch (error) {
-      console.error("Geocoding API Error:", error);
-      res.status(500).json({ error: "❌ Internal server error" });
-  }
+        res.json(data);
+    } catch (error) {
+        console.error("Geocoding API Error:", error);
+        res.status(500).json({ error: "❌ Internal server error" });
+    }
 });
 
+// ✅ Directions API
 app.get("/directions", async (req, res) => {
-  try {
-      const { origin, destination } = req.query;
+    try {
+        const { origin, destination } = req.query;
+        if (!origin || !destination) return res.status(400).json({ error: "❌ Both origin and destination are required" });
 
-      if (!origin || !destination) {
-          return res.status(400).json({ error: "❌ Both origin and destination are required" });
-      }
+        const { data } = await axios.get("https://maps.googleapis.com/maps/api/directions/json", {
+            params: { origin, destination, mode: "driving", key: googleMapsApiKey },
+        });
 
-      const response = await axios.get("https://maps.googleapis.com/maps/api/directions/json", {
-          params: {
-              origin,
-              destination,
-              mode: "driving",
-              key: googleMapsApiKey,
-          },
-      });
+        if (data.status !== "OK") {
+            return res.status(400).json({ error: "❌ Failed to fetch directions", details: data.status });
+        }
 
-      if (response.data.status !== "OK") {
-          return res.status(400).json({ error: "❌ Failed to fetch directions", details: response.data.status });
-      }
-
-      res.json(response.data);
-  } catch (error) {
-      console.error("Directions API Error:", error);
-      res.status(500).json({ error: "❌ Internal server error" });
-  }
+        res.json(data);
+    } catch (error) {
+        console.error("Directions API Error:", error);
+        res.status(500).json({ error: "❌ Internal server error" });
+    }
 });
 
-
-// Route Calculation (Using Backend API Key)
+// ✅ Route Calculation
 app.post("/calculate-route", async (req, res) => {
-  const { origin, destination } = req.body;
+    try {
+        const { origin, destination } = req.body;
+        if (!origin || !destination) return res.status(400).json({ error: "❌ Both origin and destination are required" });
 
-  try {
-    const response = await axios.get(
-      `https://maps.googleapis.com/maps/api/directions/json`,
-      {
-        params: {
-          origin: encodeURIComponent(origin),
-          destination: encodeURIComponent(destination),
-          mode: "driving",  // Use correct 'mode' instead of 'travelMode'
-          key: process.env.BACKEND_GOOGLE_MAPS_API_KEY,
-        },
-      }
-    );
-    
-    res.json(response.data);
-  } catch (error) {
-    console.error("Error fetching directions:", error);
-    res.status(500).json({ error: "Failed to fetch directions" });
-  }
+        const { data } = await axios.get("https://maps.googleapis.com/maps/api/directions/json", {
+            params: { origin, destination, mode: "driving", key: googleMapsApiKey },
+        });
+
+        res.json(data);
+    } catch (error) {
+        console.error("Error fetching directions:", error);
+        res.status(500).json({ error: "Failed to fetch directions" });
+    }
 });
 
-const PORT = process.env.PORT || 5000;
+// ✅ Start Server
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-

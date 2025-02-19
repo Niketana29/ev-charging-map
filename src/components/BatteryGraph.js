@@ -10,12 +10,11 @@ const BatteryGraph = ({ batteryLevel }) => {
   const [timeLabels, setTimeLabels] = useState([]);
 
   useEffect(() => {
-    const currentTime = new Date().toLocaleTimeString(); // Capture current time
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setBatteryData((prevData) => [...prevData, batteryLevel].slice(-10));
+    setTimeLabels((prevLabels) => [...prevLabels, currentTime].slice(-10));
+}, [batteryLevel]);
 
-    // Ensure only the last 10 entries are stored
-    setBatteryData((prevData) => [...prevData.slice(-9), batteryLevel]);
-    setTimeLabels((prevLabels) => [...prevLabels.slice(-9), currentTime]); // Store timestamps
-  }, [batteryLevel]);
 
   const data = {
     labels: timeLabels, // Use timestamps instead of generic T1, T2, etc.
