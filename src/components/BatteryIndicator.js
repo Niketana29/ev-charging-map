@@ -1,6 +1,6 @@
 import { ProgressBar, Alert } from "react-bootstrap";
 
-const BatteryIndicator = ({ batteryLevel }) => {
+const BatteryIndicator = ({ batteryLevel = 100 }) => {
   return (
     <div style={{ margin: "20px 0" }}>
       <h4>Battery Level</h4>

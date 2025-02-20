@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   GoogleMap,
-  Marker,
+  MarkerF,
   InfoWindow,
   DirectionsRenderer,
   Autocomplete,
   DirectionsService,
-  LoadScript,
 } from "@react-google-maps/api";
 import { Button, Form, Container, Row, Col } from "react-bootstrap";
 import axios from "axios";
@@ -22,7 +21,7 @@ import { useLoadScript } from "@react-google-maps/api";
 
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-const libraries = ["places"];
+const libraries = ["places", "geometry"];
 const mapContainerStyle = {
   width: "100%",
   height: "50vh",
@@ -42,7 +41,7 @@ const EVChargingMap = () => {
   const startLocationRef = useRef(null);
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries, // Add any required libraries
+    libraries,// Add any required libraries
   });
   const [map, setMap] = useState(null);
   const [directions, setDirections] = useState(null);
@@ -366,136 +365,119 @@ const fetchUserLocation = async () => {
 
   
 const fetchGeocode = async (address) => {
-  if (!address?.trim()) {  // Trim to remove accidental spaces
+  if (!address?.trim()) {
     console.error("⚠️ Geocoding Error: Address is empty!");
-    addNotification("⚠️ Please enter a valid address!", "warning");
+    addNotification?.("⚠️ Please enter a valid address!", "warning"); 
     return null;
   }
 
   try {
     const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
-                params: {
-                    address: encodeURIComponent(address),
-                    key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-                },
-            });
+      params: {
+        address: address,
+        key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
+      },
+    });
 
-            if (!response.data || response.data.status !== "OK" || !response.data.results.length) {
-              console.error("❌ Geocoding API Error:", response.data.status);
-              addNotification("❌ Invalid location. Try again!", "danger");
-              return null;
-          }
-          
-          return response.data.results[0].geometry.location;
-          
-        } catch (error) {
-            console.error("Geocoding Error:", error);
-            addNotification("❌ Error fetching location.", "danger");
-            return null;
-        }
-    };
-
-
-
-    const fetchDirections = async (startCoords, nearestStation) => {
-      if (!startCoords || !nearestStation) {
-          addNotification("❌ Invalid route locations. Please try again.", "danger");
-          return null;
-      }
-
-      try {
-          const response = await axios.get(
-              `https://maps.googleapis.com/maps/api/directions/json`,
-              {
-                  params: {
-                      origin: `${startCoords.lat},${startCoords.lng}`,
-                      destination: `${nearestStation.latitude},${nearestStation.longitude}`,
-                      mode: "driving",
-                      key: process.env.REACT_APP_GOOGLE_MAPS_API_KEY
-                  },
-              }
-          );
-          const data = response.data;
-          if (!data?.routes?.[0]?.legs?.length) {
-            console.error("❌ Invalid Directions API response:", data);
-            addNotification("❌ Route data incomplete!", "danger");
-            return null;
-          }
-          setDirections(data);
-          
-
-        const routeLeg = data.routes[0].legs[0];
-          
-        const routeDistance = data.routes[0].legs[0].distance.value / 1000;
-        const batteryUsage = (routeDistance * (batteryConsumptionRates[vehicleType] || 0)).toFixed(2);
-
-        
-        
-        setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
-        setStoredBatteryUsage(batteryUsage);
-        setStoredTravelTime(routeLeg.duration.text);
-        
-        addNotification(`📍 Estimated Travel Time: ${routeLeg.duration.text}`, "info");
-        addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
-        
-        setCenter(startCoords);
-        
-        
-      } catch (error) {
-          console.error("❌ Failed to fetch directions:", error);
-          addNotification("❌ Error fetching route data.", "danger");
-          return null;
-      }
-  };
-
-  const getNearestStation = (coords) => {
-    if (!coords) {
-        addNotification("⚠️ Invalid coordinates!", "warning");
-        return null;
+    if (!response.data || response.data.status !== "OK" || !response.data.results.length) {
+      console.error("❌ Geocoding API Error:", response.data.status);
+      addNotification?.("❌ Invalid location. Try again!", "danger");
+      return null;
     }
 
-    if (!chargingStations.length) {
-        addNotification("⚠️ No charging stations available!", "warning");
-        return null;
-    }
-
-    if (!vehicleType) {
-        addNotification("⚠️ Please select a vehicle type!", "warning");
-        return null;
-    }
-
-    const validStations = chargingStations.filter(station =>
-      !isNaN(+station.latitude) && !isNaN(+station.longitude) &&
-      station["Supported Vehicle Types"]?.includes(vehicleType)
-      
-    );
-
-    if (!validStations.length) {
-        addNotification("⚠️ No stations support your vehicle type!", "warning");
-        return null;
-    }
-
-    const nearest = validStations.reduce((closest, station) => {
-        const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
-        const distance = haversineDistance(coords, stationCoords);
-        return distance < closest.distance ? { station, distance } : closest;
-    }, { station: null, distance: Infinity });
-
-    return nearest.station || null;
+    return response.data.results[0].geometry.location;
+  } catch (error) {
+    console.error("Geocoding Error:", error);
+    addNotification?.("❌ Error fetching location.", "danger");
+    return null;
+  }
 };
 
 
 
+
+
+const fetchDirections = async (startCoords, nearestStation) => {
+  if (!startCoords || !nearestStation) {
+    addNotification?.("❌ Invalid route locations. Please try again.", "danger");
+    return null;
+  }
+
+  if (!window.google || !window.google.maps) {
+    console.error("Google Maps API is not loaded.");
+    addNotification?.("⚠️ Google Maps API not loaded. Try again later.", "warning");
+    return null;
+  }
+
+  const directionsService = new google.maps.DirectionsService();
+
+  return new Promise((resolve, reject) => {
+    directionsService.route(
+      {
+        origin: new google.maps.LatLng(startCoords.lat, startCoords.lng),
+        destination: new google.maps.LatLng(nearestStation.latitude, nearestStation.longitude),
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK) {
+          console.log("✅ Directions API Response:", result);
+          resolve(result);
+        } else {
+          console.error("❌ Directions request failed:", status);
+          addNotification?.("❌ Failed to fetch route. Try again.", "danger");
+          reject(status);
+        }
+      }
+    );
+  });
+};
+
+
   
-  
- 
+
+const getNearestStation = (coords) => {
+  if (!coords) {
+    addNotification?.("⚠️ Invalid coordinates!", "warning");
+    return null;
+  }
+
+  if (!chargingStations?.length) {
+    addNotification?.("⚠️ No charging stations available!", "warning");
+    return null;
+  }
+
+  if (!vehicleType) {
+    addNotification?.("⚠️ Please select a vehicle type!", "warning");
+    return null;
+  }
+
+  const validStations = chargingStations.filter(station =>
+    !isNaN(+station.latitude) && !isNaN(+station.longitude) &&
+    station["Supported Vehicle Types"]?.includes(vehicleType)
+  );
+
+  if (!validStations.length) {
+    addNotification?.("⚠️ No stations support your vehicle type!", "warning");
+    return null;
+  }
+
+  const nearest = validStations.reduce((closest, station) => {
+    const stationCoords = { lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) };
+    const distance = haversineDistance(coords, stationCoords); // Ensure this function is defined
+    return distance < closest.distance ? { station, distance } : closest;
+  }, { station: null, distance: Infinity });
+
+  return nearest.station || null;
+};
+
+
 const calculateRoute = async () => {
   console.log("🚀 Calculating Route...");
   console.log("📍 Search Type:", searchType);
   console.log("📍 Start Location (Before Geocoding):", startLocation);
 
   if (!vehicleType) {
-    addNotification("⚠️ Please select a vehicle type!", "warning");
+    addNotification?.("⚠️ Please select a vehicle type!", "warning");
     return;
   }
 
@@ -507,9 +489,8 @@ const calculateRoute = async () => {
   }
 
   if (!startCoords || isNaN(startCoords.lat) || isNaN(startCoords.lng)) {
-
     console.error("⚠️ Invalid start location:", startCoords);
-    addNotification("⚠️ Unable to determine your location!", "warning");
+    addNotification?.("⚠️ Unable to determine your location!", "warning");
     return;
   }
 
@@ -517,7 +498,7 @@ const calculateRoute = async () => {
 
   const nearestStation = getNearestStation(startCoords);
   if (!nearestStation) {
-    addNotification("⚠️ No nearby charging station found!", "warning");
+    addNotification?.("⚠️ No nearby charging station found!", "warning");
     return;
   }
 
@@ -528,37 +509,30 @@ const calculateRoute = async () => {
 
   try {
     const data = await fetchDirections(startCoords, nearestStation);
+    if (!data) throw new Error("Failed to fetch route");
 
-    if (!data || data.status !== "OK") {
-      console.error("❌ Failed to fetch route:", data);
-      addNotification("❌ Failed to fetch route. Try again.", "danger");
-      setLoading(false);
-      return;
-    }
-    
-
-    console.log("✅ Directions API Response:", data);
-    setDirections(data); // ✅ Ensure DirectionsRenderer receives valid data
+    setDirections?.(data);  
 
     const routeDistance = data.routes[0].legs[0].distance.value / 1000;
     const batteryUsage = routeDistance * batteryConsumptionRates[vehicleType];
 
-    setBatteryLevel((prev) => Math.max(0, prev - batteryUsage));
-    setStoredBatteryUsage(parseFloat(batteryUsage)); 
-    setStoredTravelTime(data.routes[0].legs[0]?.duration?.text || "N/A");
-    
+    setBatteryLevel?.((prev) => Math.max(0, prev - batteryUsage));
+    setStoredBatteryUsage?.(parseFloat(batteryUsage));
+    setStoredTravelTime?.(data.routes[0].legs[0]?.duration?.text || "N/A");
 
-    addNotification(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
-    addNotification(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
+    addNotification?.(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
+    addNotification?.(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
 
-    setCenter(startCoords);
+    setCenter?.(startCoords);
   } catch (error) {
     console.error("❌ Error fetching directions:", error);
-    addNotification("❌ Error fetching route data. Check API configuration.", "danger");
+    addNotification?.("❌ Error fetching route data. Check API configuration.", "danger");
   } finally {
     setLoading(false);
   }
 };
+
+
 
 
 
@@ -582,24 +556,36 @@ const actualTime = directions?.routes?.[0]?.legs?.[0]?.duration?.text || "N/A";
 const handlePlaceChanged = () => {
   if (startLocationRef.current) {
     const place = startLocationRef.current.getPlace();
-    if (userLocation) {
-      setTimeout(() => map.panTo(userLocation), 500);
+    if (place?.geometry?.location) {
+      setStartLocation(place.formatted_address);
+      
+      // Ensure map is available before calling panTo
+      if (map) {
+        setTimeout(() => map?.panTo(place.geometry.location), 500);
+      } else {
+        console.warn("⚠️ Map object is not available.");
+      }
     }
-    
   }
 };
+
+
 
 
 
 const loadGoogleMapsScript = () => {
-  if (!window.google?.maps && !document.querySelector('script[src*="maps.googleapis.com"]')) {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }
+  if (window.google?.maps) return; // Skip if already loaded
+
+  const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+  if (existingScript) return; // Skip if script is already added
+
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
 };
+
 
   return (
       <Container className="mt-4">
@@ -693,26 +679,25 @@ const loadGoogleMapsScript = () => {
             {/* Right Side: Notifications Sidebar */}
             <NotificationsSidebar notifications={notifications} />
             </div>
-            <LoadScript googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY} libraries={['places']} />
+
+
 
             <GoogleMap
   mapContainerStyle={mapContainerStyle}
   zoom={12}
-  center={userLocation || { lat: 28.6139, lng: 77.2090 }} // Default center
-  onLoad={(map) => {
-    setMap(map);
-    if (userLocation) {
-      setTimeout(() => map.panTo(userLocation), 500);
-    }
-    
-    const resizeHandler = () => setTimeout(() => map.setCenter(userLocation), 500);
-    window.addEventListener("resize", resizeHandler);
-  }}
+  center={userLocation || { lat: 28.6139, lng: 77.2090 }}
+  onLoad={(mapInstance) => setMap(mapInstance)}
 >
-
   {directions && <DirectionsRenderer directions={directions} />}
   {chargingStations.map((station, index) => (
-    <Marker key={index} position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }} />
+    <MarkerF
+      key={index}
+      position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }}
+      icon={{
+        url: "https://maps.google.com/mapfiles/kml/shapes/charging_station.png",
+        scaledSize: window.google ? new window.google.maps.Size(30, 30) : null, // Handle missing google object
+      }}
+    />
   ))}
 </GoogleMap>
 

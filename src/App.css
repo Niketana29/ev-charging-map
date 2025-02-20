@@ -63,6 +63,14 @@ button:hover {
   margin-top: 10px;
 }
 
+/* Battery Graph Container */
+.battery-graph-container {
+  height: 200px;
+  width: 100%;
+  margin: 10px 0;
+}
+
+
 /* Battery Indicator */
 .battery-indicator {
   width: 80px;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from "prop-types";
 
 const NotificationsSidebar = ({ notifications, clearNotifications, removeNotification }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -6,11 +7,8 @@ const NotificationsSidebar = ({ notifications, clearNotifications, removeNotific
     useEffect(() => {
         if (notifications.length > 0) {
             setIsOpen(true);
-        } else {
-            setIsOpen(false); // Auto-close sidebar when no notifications
         }
     }, [notifications]);
-    
 
     return (
         <div style={{ 
@@ -20,11 +18,11 @@ const NotificationsSidebar = ({ notifications, clearNotifications, removeNotific
             width: "300px", 
             height: "100vh", 
             backgroundColor: "#f8f9fa", 
-            boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+            boxShadow: isOpen ? "-2px 0px 10px rgba(0,0,0,0.2)" : "none",
             padding: "20px",
             overflowY: "auto",
             transition: "right 0.4s ease-in-out, box-shadow 0.2s ease-in-out",
-            zIndex: 1000
+            zIndex: 1000,
         }}>
             {/* Sidebar Toggle Button */}
             <button 
@@ -100,6 +98,12 @@ const NotificationsSidebar = ({ notifications, clearNotifications, removeNotific
             )}
         </div>
     );
+};
+
+NotificationsSidebar.propTypes = {
+    notifications: PropTypes.array.isRequired,
+    clearNotifications: PropTypes.func.isRequired,
+    removeNotification: PropTypes.func.isRequired,
 };
 
 export default NotificationsSidebar;

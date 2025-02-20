@@ -1,21 +1,27 @@
-import React, { useState } from "react";
-import { useLoadScript } from "@react-google-maps/api";
+import React, { useState, useEffect } from "react";
 import NotificationsSidebar from "./components/NotificationsSidebar";
 import BatteryIndicator from "./components/BatteryIndicator";
 import EVChargingMap from "./components/EVChargingMap";
 import "./App.css";
 
-const libraries = ["places"];
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
 
 const App = () => {
-    const { isLoaded } = useLoadScript({
-        googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-        libraries,
-    });
 
     const [notifications, setNotifications] = useState([]);
     const [batteryLevel, setBatteryLevel] = useState(80);
     const [estimatedTime, setEstimatedTime] = useState("");
+
+    useEffect(() => {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+        script.async = true;
+        document.body.appendChild(script);
+
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
 
     const addNotification = (message) => {
         setNotifications((prev) => [...prev, { id: Date.now(), text: message }]);
@@ -23,8 +29,6 @@ const App = () => {
 
     const clearNotifications = () => setNotifications([]);
     const removeNotification = (id) => setNotifications((prev) => prev.filter((n) => n.id !== id));
-
-    if (!isLoaded) return <p>Loading Google Maps...</p>;
 
     return (
         <div className="app-container" style={{ display: "flex", flexDirection: "row", height: "100vh" }}>

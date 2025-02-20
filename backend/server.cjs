@@ -1,4 +1,5 @@
-require("dotenv").config({ path: ".env.backend" }); // Rename file for better compatibility
+require("dotenv").config({ path: ".env.backend" });
+ // Rename file for better compatibility
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
@@ -11,7 +12,8 @@ app.use(express.json()); // Ensure JSON body parsing is enabled
 
 app.use(cors({
     origin: ["http://localhost:3000", "https://evatlas.vercel.app"],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "OPTIONS"], // ✅ Add OPTIONS
+    allowedHeaders: ["Content-Type", "Authorization"], // ✅ Add necessary headers
 }));
 
 // ✅ Fetch Battery Status
