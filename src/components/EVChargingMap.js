@@ -4,6 +4,7 @@ import {
   MarkerF,
   InfoWindow,
   DirectionsRenderer,
+  LoadScript,
   Autocomplete,
   DirectionsService,
 } from "@react-google-maps/api";
@@ -68,6 +69,7 @@ const EVChargingMap = () => {
   const [storedBatteryUsage, setStoredBatteryUsage] = useState(null);
   const [storedTravelTime, setStoredTravelTime] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
   
 
 
@@ -92,35 +94,44 @@ useEffect(() => {
   );
 }, []);
 
-// Handle startLocation validation
 useEffect(() => {
-  if (!startLocation) {
-      console.error("Invalid start location");
+  if (startLocation && startLocation.lat && startLocation.lng) {
+    console.log("Start location is valid:", startLocation);
+  } else {
+    console.warn("Invalid or missing start location");
   }
 }, [startLocation]);
+
 
 // Remove notifications after 5 seconds
 useEffect(() => {
   if (notifications.length === 0) return;
 
   const timer = setTimeout(() => {
-      setNotifications((prev) => prev.slice(1));
+    setNotifications((prev) => (prev.length > 0 ? prev.slice(1) : prev));
   }, 5000);
 
-  return () => clearTimeout(timer);
+  return () => {
+    clearTimeout(timer);
+  };
 }, [notifications]);
 
-// Handle window resize and adjust map center
+
+
 useEffect(() => {
   const handleResize = () => {
-      if (map) {
-          map.setCenter(center);
-      }
+    if (map) {
+      map.setCenter(center);
+    }
   };
 
   window.addEventListener("resize", handleResize);
-  return () => window.removeEventListener("resize", handleResize);
+  
+  return () => {
+    window.removeEventListener("resize", handleResize);
+  };
 }, [map, center]);
+
 
 // Simulate battery drain (for testing)
 useEffect(() => {
@@ -133,30 +144,42 @@ useEffect(() => {
 
 // Ensure the map is updated when user location changes
 useEffect(() => {
-  if (map && userLocation) {
-      map.setCenter(userLocation);
-  }
+  if (!map || !userLocation) return;
+
+  map.setCenter(userLocation);
 }, [map, userLocation]);
+
+
 
 // Handle Google Maps autocomplete
 /* global google */
 useEffect(() => {
-  if (!window.google) return; // Ensure Google API is loaded
+  if (!window.google) return;
 
   const input = document.getElementById("destination-input");
-  if (input) {
-      const autocomplete = new window.google.maps.places.Autocomplete(input);
-      autocomplete.addListener("place_changed", () => {
-          const place = autocomplete.getPlace();
-          if (place.geometry && place.geometry.location) {
-              setDestination({
-                  lat: place.geometry.location.lat(),
-                  lng: place.geometry.location.lng(),
-              });
-          }
+  if (!input) return;
+
+  const autocomplete = new window.google.maps.places.Autocomplete(input);
+  
+  const handlePlaceChanged = () => {
+    const place = autocomplete.getPlace();
+    if (place.geometry && place.geometry.location) {
+      setDestination({
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
       });
-  }
+    }
+  };
+
+  autocomplete.addListener("place_changed", handlePlaceChanged);
+
+  return () => {
+    window.google.maps.event.clearInstanceListeners(autocomplete);
+  };
 }, []);
+
+
+
 
 
 // Google Maps autocomplete service (seems unused)
@@ -168,23 +191,30 @@ useEffect(() => {
 
 // Load Excel data and handle location tracking
 useEffect(() => {
-  const fetchData = async () => {
-      try {
-          const data = await loadExcelData(); // Load Excel file
-          setChargingStations(data);
-      } catch (error) {
-          console.error("Error loading Excel data:", error);
-      }
-  };
-
-  fetchData();
+  let watchId;
 
   if (trackLocation) {
-      trackUserLocation();
-  } else if (watchId) {
-      navigator.geolocation.clearWatch(watchId);
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      (error) => console.error("Tracking error:", error),
+      { enableHighAccuracy: true }
+    );
   }
-}, [trackLocation]); // Removed unnecessary isLoaded check
+
+  return () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+    }
+  };
+}, [trackLocation]);
+
+
+ // Removed unnecessary isLoaded check
                 
   const BatteryIndicator = ({ batteryLevel }) => {
     return (
@@ -556,18 +586,25 @@ const actualTime = directions?.routes?.[0]?.legs?.[0]?.duration?.text || "N/A";
 const handlePlaceChanged = () => {
   if (startLocationRef.current) {
     const place = startLocationRef.current.getPlace();
-    if (place?.geometry?.location) {
-      setStartLocation(place.formatted_address);
-      
-      // Ensure map is available before calling panTo
-      if (map) {
-        setTimeout(() => map?.panTo(place.geometry.location), 500);
-      } else {
-        console.warn("⚠️ Map object is not available.");
-      }
+
+    if (!place.geometry || !place.geometry.location) {
+      console.error("Invalid start location");
+      return;
+    }
+
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+
+    setStartLocation({ lat, lng });
+
+    // Pan the map to the selected location
+    if (mapRef.current) {
+      mapRef.current.panTo({ lat, lng });
+      mapRef.current.setZoom(14); // Optional: Zoom into the location
     }
   }
 };
+
 
 
 
@@ -587,125 +624,133 @@ const loadGoogleMapsScript = () => {
 };
 
 
-  return (
-      <Container className="mt-4">
-        <Row className="justify-content-center">
-          <Col xs={12} md={8}>
-            <h2 className="text-center">Find Nearest EV Charging Station</h2>
+ return(
+  <LoadScript
+  googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
+  libraries={["places"]}
+>
+  <Container className="mt-4">
+    <Row className="justify-content-center">
+      <Col xs={12} md={8}>
+        <h2 className="text-center">Find Nearest EV Charging Station</h2>
 
-            <Form>
-              <Form.Group>
-                <Form.Label>Search by</Form.Label>
-                <Form.Control as="select" className="form-control-lg" value={searchType} onChange={(e) => setSearchType(e.target.value)}>
-                  <option value="startLocation">Start Location</option>
-                  <option value="currentLocation">Current Location</option>
-                </Form.Control>
-              </Form.Group>
+        <Form>
+          <Form.Group>
+            <Form.Label>Search by</Form.Label>
+            <Form.Control
+              as="select"
+              className="form-control-lg"
+              value={searchType}
+              onChange={(e) => setSearchType(e.target.value)}
+            >
+              <option value="startLocation">Start Location</option>
+              <option value="currentLocation">Current Location</option>
+            </Form.Control>
+          </Form.Group>
 
-              {searchType === "startLocation" && (
-                <Form.Group>
-                  <Form.Label>Enter Start Location</Form.Label>
-                  <Autocomplete onLoad={(autocomplete) => (startLocationRef.current = autocomplete)} onPlaceChanged={handlePlaceChanged}>
-                    <Form.Control
-                      type="text"
-                      ref={startLocationRef}
-                      placeholder="Enter Start Location"
-                      onChange={(e) => setStartLocation(e.target.value)}
-                    />
-                  </Autocomplete>
-            
-                </Form.Group>
-              )}
-
-              <Form.Group>
-                <Form.Label>Vehicle Type</Form.Label>
+          {searchType === "startLocation" && (
+            <Form.Group>
+              <Form.Label>Enter Start Location</Form.Label>
+              <Autocomplete
+                onLoad={(autocomplete) => (startLocationRef.current = autocomplete)}
+                onPlaceChanged={handlePlaceChanged}
+              >
                 <Form.Control
-                  as="select"
-                  value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value)}
-                >
-                  <option value="">Select Vehicle Type</option>
-                  <option value="EV1">EV1</option>
-                  <option value="EV2">EV2</option>
-                  <option value="EV3">EV3</option>
-                </Form.Control>
-              </Form.Group>
-              <Form.Group>
-  <Form.Label>Battery Level: {Math.round(batteryLevel)}%</Form.Label>
-  <Form.Control
-    type="range"
-    min="0"
-    max="100"
-    value={batteryLevel}
-    onChange={(e) => setBatteryLevel(parseInt(e.target.value))}
-  />
-</Form.Group>
+                  type="text"
+                  ref={startLocationRef}
+                  placeholder="Enter Start Location"
+                  onChange={(e) => setStartLocation(e.target.value)}
+                />
+              </Autocomplete>
+            </Form.Group>
+          )}
 
-<Button variant="primary" onClick={calculateRoute} className="mt-2" disabled={loading}>
-    {loading ? "Calculating..." : "Calculate Route"}
-</Button>
+          <Form.Group>
+            <Form.Label>Vehicle Type</Form.Label>
+            <Form.Control
+              as="select"
+              value={vehicleType}
+              onChange={(e) => setVehicleType(e.target.value)}
+            >
+              <option value="">Select Vehicle Type</option>
+              <option value="EV1">EV1</option>
+              <option value="EV2">EV2</option>
+              <option value="EV3">EV3</option>
+            </Form.Control>
+          </Form.Group>
 
-<Button variant="success" className="ml-2 mt-2" onClick={calculateActualTravelTime}>
-    Log Travel Time
-</Button>
+          <Form.Group>
+            <Form.Label>Battery Level: {Math.round(batteryLevel)}%</Form.Label>
+            <Form.Control
+              type="range"
+              min="0"
+              max="100"
+              value={batteryLevel}
+              onChange={(e) => setBatteryLevel(parseInt(e.target.value))}
+            />
+          </Form.Group>
 
-<Button
-    variant="info"
-    className="ml-2 mt-2"
-    onClick={() => {
-      setTrackLocation((prev) => !prev);
-      addNotification(trackLocation ? "🔴 Live Tracking Disabled" : "🟢 Live Tracking Enabled", "info");
-    }}
-    
-    disabled={loading}
->
-    {trackLocation ? "Disable" : "Enable"} Live Tracking
-</Button>
+          <Button variant="primary" onClick={calculateRoute} className="mt-2" disabled={loading}>
+            {loading ? "Calculating..." : "Calculate Route"}
+          </Button>
 
+          <Button variant="success" className="ml-2 mt-2" onClick={calculateActualTravelTime}>
+            Log Travel Time
+          </Button>
 
+          <Button
+            variant="info"
+            className="ml-2 mt-2"
+            onClick={() => {
+              setTrackLocation((prev) => !prev);
+              addNotification(trackLocation ? "🔴 Live Tracking Disabled" : "🟢 Live Tracking Enabled", "info");
+            }}
+            disabled={loading}
+          >
+            {trackLocation ? "Disable" : "Enable"} Live Tracking
+          </Button>
+        </Form>
 
+        <div className="battery-graph-container">
+          <BatteryGraph batteryLevel={batteryLevel} />
+        </div>
 
-            </Form>
-            <div className="battery-graph-container">
-            <BatteryGraph batteryLevel={batteryLevel} />
-            </div>
-
-            <div style={{ display: "flex" }}>
-            {/* Left Side: Map */}
-            <div style={{ flex: 1 }}>
-            {/* Your Google Map and other UI elements */}
-            </div>
-
-            {/* Right Side: Notifications Sidebar */}
-            <NotificationsSidebar notifications={notifications} />
-            </div>
-
-
-
+        <div style={{ display: "flex" }}>
+          <div style={{ flex: 1 }}>
+            {/* Google Map */}
             <GoogleMap
-  mapContainerStyle={mapContainerStyle}
-  zoom={12}
-  center={userLocation || { lat: 28.6139, lng: 77.2090 }}
-  onLoad={(mapInstance) => setMap(mapInstance)}
->
-  {directions && <DirectionsRenderer directions={directions} />}
-  {chargingStations.map((station, index) => (
-    <MarkerF
-      key={index}
-      position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }}
-      icon={{
-        url: "https://maps.google.com/mapfiles/kml/shapes/charging_station.png",
-        scaledSize: window.google ? new window.google.maps.Size(30, 30) : null, // Handle missing google object
-      }}
-    />
-  ))}
-</GoogleMap>
+              mapContainerStyle={mapContainerStyle}
+              zoom={12}
+              center={userLocation || { lat: 28.6139, lng: 77.2090 }}
+              onLoad={(map) => {
+                if (!mapInstance) {
+                  setMapInstance(map); // Store the map instance
+                }
+              }}
+            >
+              {directions && <DirectionsRenderer directions={directions} />}
+              {chargingStations.map((station, index) => (
+  <MarkerF
+    key={`${station.latitude}-${station.longitude}`} // Ensure unique key
+    position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }}
+    icon={{
+      url: "https://maps.google.com/mapfiles/kml/shapes/charging_station.png",
+      scaledSize: window.google ? new window.google.maps.Size(30, 30) : null, // Prevent undefined error
+    }}
+  />
+))}
 
+            </GoogleMap>
+          </div>
 
-            
-          </Col>
-        </Row>
-      </Container>
+          {/* Right Side: Notifications Sidebar */}
+          <NotificationsSidebar notifications={notifications} />
+        </div>
+      </Col>
+    </Row>
+  </Container>
+</LoadScript>
+
   );
 };
 
