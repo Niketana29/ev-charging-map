@@ -5,9 +5,9 @@ import EVChargingMap from "./components/EVChargingMap";
 import "./App.css";
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL; // ✅ Use backend URL
 
 const App = () => {
-
     const [notifications, setNotifications] = useState([]);
     const [batteryLevel, setBatteryLevel] = useState(80);
     const [estimatedTime, setEstimatedTime] = useState("");
@@ -23,41 +23,19 @@ const App = () => {
         };
     }, []);
 
-    const addNotification = (message) => {
-        setNotifications((prev) => [...prev, { id: Date.now(), text: message }]);
-    };
-
-    const clearNotifications = () => setNotifications([]);
-    const removeNotification = (id) => setNotifications((prev) => prev.filter((n) => n.id !== id));
+    // ✅ Fetch Battery Level from Backend
+    useEffect(() => {
+        fetch(`${BACKEND_URL}/battery-status`)
+            .then((res) => res.json())
+            .then((data) => setBatteryLevel(data.level));
+    }, []);
 
     return (
-        <div className="app-container" style={{ display: "flex", flexDirection: "row", height: "100vh" }}>
-            <div style={{ flex: 1, padding: "20px" }}>
-                <EVChargingMap addNotification={addNotification} setEstimatedTime={setEstimatedTime} />
-                <BatteryIndicator batteryLevel={batteryLevel} />
-
-                {estimatedTime && (
-                    <p style={{ fontSize: "16px", fontWeight: "bold", margin: "10px 0", color: "#333" }}>
-                        Estimated Travel Time: {estimatedTime} mins
-                    </p>
-                )}
-
-                <button
-                    onClick={() => addNotification(`⚡ Battery Consumption Estimate: ${(Math.random() * 0.5).toFixed(2)} kWh`)}
-                    style={{ background: "#007bff", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
-                >
-                    Show Battery Info
-                </button>
-
-                <button
-                    onClick={() => addNotification(`🕒 Estimated Travel Time: ${estimatedTime || Math.floor(Math.random() * 20) + 5} mins`)}
-                    style={{ background: "#28a745", color: "white", padding: "10px", borderRadius: "5px", margin: "10px 5px" }}
-                >
-                    Show Travel Time
-                </button>
-            </div>
-
-            <NotificationsSidebar notifications={notifications} clearNotifications={clearNotifications} removeNotification={removeNotification} />
+        <div className="app-container">
+            <EVChargingMap setEstimatedTime={setEstimatedTime} />
+            <BatteryIndicator batteryLevel={batteryLevel} />
+            {estimatedTime && <p>Estimated Travel Time: {estimatedTime} mins</p>}
+            <NotificationsSidebar notifications={notifications} />
         </div>
     );
 };

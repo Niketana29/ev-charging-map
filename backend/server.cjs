@@ -1,22 +1,21 @@
 require("dotenv").config({ path: ".env.backend" });
- // Rename file for better compatibility
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const googleMapsApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY; // Store API key once
+const googleMapsApiKey = process.env.BACKEND_GOOGLE_MAPS_API_KEY;
 
-app.use(express.json()); // Ensure JSON body parsing is enabled
+app.use(express.json());
 
 app.use(cors({
-    origin: ["http://localhost:3000", "https://evatlas.vercel.app"],
-    methods: ["GET", "POST", "OPTIONS"], // ✅ Add OPTIONS
-    allowedHeaders: ["Content-Type", "Authorization"], // ✅ Add necessary headers
+    origin: ["http://localhost:3000", "https://evatlas.vercel.app"], // ✅ Allow both local & deployed frontend
+    methods: ["GET", "POST", "OPTIONS"], 
+    allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-// ✅ Fetch Battery Status
+// ✅ Battery Status API
 app.get("/battery-status", (req, res) => {
     const batteryLevel = Math.floor(Math.random() * 100);
     res.json({ level: batteryLevel });
@@ -64,7 +63,7 @@ app.get("/directions", async (req, res) => {
     }
 });
 
-// ✅ Route Calculation
+// ✅ Route Calculation API
 app.post("/calculate-route", async (req, res) => {
     try {
         const { origin, destination } = req.body;
@@ -77,7 +76,7 @@ app.post("/calculate-route", async (req, res) => {
         res.json(data);
     } catch (error) {
         console.error("Error fetching directions:", error);
-        res.status(500).json({ error: "Failed to fetch directions" });
+        res.status(500).json({ error: "❌ Failed to fetch directions" });
     }
 });
 

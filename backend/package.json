@@ -4,7 +4,7 @@
   "description": "Backend server for EV Charging Station Finder",
   "main": "server.cjs",
   "scripts": {
-    "start": "node server.cjs",
+    "start": "node backend/server.cjs",
     "dev": "nodemon server.cjs",
     "test": "jest"
   },
