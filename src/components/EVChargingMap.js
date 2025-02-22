@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import {
   GoogleMap,
@@ -22,6 +23,7 @@ import { useLoadScript } from "@react-google-maps/api";
 
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL
 const libraries = ["places", "geometry"];
 const mapContainerStyle = {
   width: "100%",
@@ -70,27 +72,40 @@ const EVChargingMap = () => {
   const [storedTravelTime, setStoredTravelTime] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mapInstance, setMapInstance] = useState(null);
+  const [stations, setStations] = useState([]);
+
+  useEffect(() => {
+    if (!window.google || !window.google.maps) {
+      loadGoogleMapsScript();
+    }
+  }, []);
   
 
 
 
 // Get user location on mount
+// Get user location on mount
 useEffect(() => {
+  if (!navigator.geolocation) {
+    console.error("Geolocation is not supported by this browser.");
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(
-      (position) => {
-          if (!position || !position.coords) {
-              console.error("Geolocation data is undefined");
-              return;
-          }
-          setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-          });
-      },
-      (error) => {
-          console.error("Error getting location:", error);
-      },
-      { enableHighAccuracy: true }
+    (position) => {
+      if (!position || !position.coords) {
+        console.error("Geolocation data is undefined");
+        return;
+      }
+      setUserLocation({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+    },
+    (error) => {
+      console.error("Error getting location:", error);
+    },
+    { enableHighAccuracy: true }
   );
 }, []);
 
@@ -102,13 +117,12 @@ useEffect(() => {
   }
 }, [startLocation]);
 
-
 // Remove notifications after 5 seconds
 useEffect(() => {
   if (notifications.length === 0) return;
 
   const timer = setTimeout(() => {
-    setNotifications((prev) => (prev.length > 0 ? prev.slice(1) : prev));
+    setNotifications((prev) => prev.slice(1));
   }, 5000);
 
   return () => {
@@ -116,8 +130,7 @@ useEffect(() => {
   };
 }, [notifications]);
 
-
-
+// Handle window resize to adjust map center
 useEffect(() => {
   const handleResize = () => {
     if (map) {
@@ -126,18 +139,14 @@ useEffect(() => {
   };
 
   window.addEventListener("resize", handleResize);
-  
-  return () => {
-    window.removeEventListener("resize", handleResize);
-  };
+  return () => window.removeEventListener("resize", handleResize);
 }, [map, center]);
 
-
-// Simulate battery drain (for testing)
+// Simulate fetching updated data every 5 seconds
 useEffect(() => {
   const interval = setInterval(() => {
-      setBatteryLevel((prev) => (prev > 0 ? prev - 1 : 0));
-  }, 3000);
+    fetchData();
+  }, 5000);
 
   return () => clearInterval(interval);
 }, []);
@@ -149,10 +158,25 @@ useEffect(() => {
   map.setCenter(userLocation);
 }, [map, userLocation]);
 
+// Fetch stations from the backend
+useEffect(() => {
+  if (!BACKEND_URL) {
+    console.error("BACKEND_URL is not defined");
+    return;
+  }
 
+  fetch(`${BACKEND_URL}/api/getStations`)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((data) => setStations(data))
+    .catch((error) => console.error("Error fetching stations:", error));
+}, []);
 
 // Handle Google Maps autocomplete
-/* global google */
 useEffect(() => {
   if (!window.google) return;
 
@@ -178,18 +202,14 @@ useEffect(() => {
   };
 }, []);
 
-
-
-
-
-// Google Maps autocomplete service (seems unused)
+// Google Maps autocomplete service initialization
 useEffect(() => {
-  if (window.google) {
-      new window.google.maps.places.AutocompleteService();
+  if (window.google && window.google.maps) {
+    new window.google.maps.places.AutocompleteService();
   }
 }, []);
 
-// Load Excel data and handle location tracking
+// Handle real-time location tracking
 useEffect(() => {
   let watchId;
 
@@ -212,6 +232,18 @@ useEffect(() => {
     }
   };
 }, [trackLocation]);
+
+// Clean up specific DOM elements safely
+useEffect(() => {
+  return () => {
+    const element = document.getElementById("some-id");
+    if (element && element.parentNode) {
+      element.remove();
+    }
+  };
+}, []);
+
+
 
 
  // Removed unnecessary isLoaded check
@@ -237,6 +269,16 @@ useEffect(() => {
 
   const addNotification = (message, type = "info") => {
     setNotifications((prev) => [...prev, { message, type }]);
+};
+
+const fetchData = async () => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/getStations`);
+    const data = await response.json();
+    setStations(data);
+  } catch (error) {
+    console.error("Error fetching stations:", error);
+  }
 };
   
   
@@ -439,17 +481,17 @@ const fetchDirections = async (startCoords, nearestStation) => {
     return null;
   }
 
-  const directionsService = new google.maps.DirectionsService();
+  const directionsService = new window.google.maps.DirectionsService();
 
   return new Promise((resolve, reject) => {
     directionsService.route(
       {
-        origin: new google.maps.LatLng(startCoords.lat, startCoords.lng),
-        destination: new google.maps.LatLng(nearestStation.latitude, nearestStation.longitude),
-        travelMode: google.maps.TravelMode.DRIVING,
+        origin: new window.google.maps.LatLng(startCoords.lat, startCoords.lng),
+        destination: new window.google.maps.LatLng(nearestStation.latitude, nearestStation.longitude),
+        travelMode: window.google.maps.TravelMode.DRIVING,
       },
       (result, status) => {
-        if (status === google.maps.DirectionsStatus.OK) {
+        if (status === window.google.maps.DirectionsStatus.OK) {
           console.log("✅ Directions API Response:", result);
           resolve(result);
         } else {
@@ -611,18 +653,23 @@ const handlePlaceChanged = () => {
 
 
 const loadGoogleMapsScript = () => {
-  if (window.google?.maps) return; // Skip if already loaded
+  if (window.google?.maps) return;
 
   const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
-  if (existingScript) return; // Skip if script is already added
+  if (existingScript) {
+    existingScript.addEventListener("load", () => {
+      console.log("✅ Google Maps API Loaded");
+    });
+    return;
+  }
 
   const script = document.createElement("script");
   script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
   script.async = true;
   script.defer = true;
+  script.onload = () => console.log("✅ Google Maps API Loaded");
   document.head.appendChild(script);
 };
-
 
  return(
   <LoadScript
@@ -735,7 +782,7 @@ const loadGoogleMapsScript = () => {
     position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }}
     icon={{
       url: "https://maps.google.com/mapfiles/kml/shapes/charging_station.png",
-      scaledSize: window.google ? new window.google.maps.Size(30, 30) : null, // Prevent undefined error
+      scaledSize: window.google?.maps ? new window.google.maps.Size(30, 30) : null,      // Prevent undefined error
     }}
   />
 ))}
