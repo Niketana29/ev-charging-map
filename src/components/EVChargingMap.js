@@ -20,6 +20,7 @@ import NotificationsSidebar from "./NotificationsSidebar";
 import { useLoadScript } from "@react-google-maps/api";
 
 
+/* global google */
 
 
 const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -326,9 +327,9 @@ const fetchData = async () => {
     let minDistance = Number.MAX_VALUE;
 
     chargingStations.forEach(station => {
-        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-            new google.maps.LatLng(origin.lat, origin.lng),
-            new google.maps.LatLng(station.lat, station.lng)
+        const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
+            new window.google.maps.LatLng(origin.lat, origin.lng),
+            new window.google.maps.LatLng(station.lat, station.lng)
         );
 
         if (distance < minDistance) {
