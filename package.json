@@ -8,6 +8,7 @@
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.7",
     "cra-template": "1.2.0",
+    "dom-helpers": "^5.2.1",
     "geolib": "^3.3.4",
     "papaparse": "^5.5.2",
     "prop-types": "^15.8.1",

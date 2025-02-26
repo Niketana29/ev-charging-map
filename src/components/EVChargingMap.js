@@ -80,20 +80,20 @@ const EVChargingMap = () => {
 // Get user location on mount
 useEffect(() => {
   navigator.geolocation.getCurrentPosition(
-      (position) => {
-          if (!position || !position.coords) {
-              console.error("Geolocation data is undefined");
-              return;
-          }
-          setUserLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-          });
-      },
-      (error) => {
-          console.error("Error getting location:", error);
-      },
-      { enableHighAccuracy: true }
+    (position) => {
+      if (!position || !position.coords) {
+        console.error("Geolocation data is undefined");
+        return;
+      }
+      setUserLocation({
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      });
+    },
+    (error) => {
+      console.error("Error getting location:", error);
+    },
+    { enableHighAccuracy: true }
   );
 }, []);
 
@@ -104,7 +104,6 @@ useEffect(() => {
     console.warn("Invalid or missing start location");
   }
 }, [startLocation]);
-
 
 // Remove notifications after 5 seconds
 useEffect(() => {
@@ -119,8 +118,7 @@ useEffect(() => {
   };
 }, [notifications]);
 
-
-
+// Handle window resize and keep the map centered
 useEffect(() => {
   const handleResize = () => {
     if (map && center) {
@@ -132,8 +130,6 @@ useEffect(() => {
   return () => window.removeEventListener("resize", handleResize);
 }, [map, center]);
 
-
-
 // Simulate battery drain (for testing)
 useEffect(() => {
   const interval = setInterval(() => {
@@ -143,23 +139,33 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, []);
 
-
 // Ensure the map is updated when user location changes
 useEffect(() => {
-  if (!map || !userLocation) return;
+  if (!map || !userLocation || typeof map.setCenter !== "function") return;
 
   map.setCenter(userLocation);
 }, [map, userLocation]);
 
+// Fetch charging stations from the backend
 useEffect(() => {
-  fetch(`${BACKEND_URL}/api/getStations`) // Adjust the API route if needed
-    .then(response => response.json())
-    .then(data => setStations(data))
-    .catch(error => console.error("Error fetching stations:", error));
+  const controller = new AbortController();
+
+  fetch(`${BACKEND_URL}/api/getStations`, { signal: controller.signal })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((data) => setStations(data))
+    .catch((error) => {
+      if (error.name !== "AbortError") {
+        console.error("Error fetching stations:", error);
+      }
+    });
+
+  return () => controller.abort();
 }, []);
-
-
-
 
 // Handle Google Maps autocomplete
 /* global google */
@@ -173,7 +179,7 @@ useEffect(() => {
   if (!input) return;
 
   const autocomplete = new window.google.maps.places.Autocomplete(input);
-  
+
   const handlePlaceChanged = () => {
     const place = autocomplete.getPlace();
     if (place.geometry && place.geometry.location) {
@@ -187,23 +193,20 @@ useEffect(() => {
   autocomplete.addListener("place_changed", handlePlaceChanged);
 
   return () => {
-    window.google.maps.event.clearInstanceListeners(autocomplete);
+    if (autocomplete) {
+      window.google.maps.event.clearInstanceListeners(autocomplete);
+    }
   };
 }, []);
-
-
-
-
-
 
 // Google Maps autocomplete service (seems unused)
 useEffect(() => {
   if (window.google) {
-      new window.google.maps.places.AutocompleteService();
+    new window.google.maps.places.AutocompleteService();
   }
 }, []);
 
-// Load Excel data and handle location tracking
+// Track user location dynamically
 useEffect(() => {
   let watchId;
 
@@ -227,32 +230,15 @@ useEffect(() => {
   };
 }, [trackLocation]);
 
-
+// Cleanup function for removing an element safely
 useEffect(() => {
   return () => {
     const element = document.getElementById("some-id");
-    if (element?.parentNode?.contains(element)) {
-      element.parentNode.removeChild(element);
+    if (element) {
+      element.remove(); // Safe way to remove an element
     }
   };
 }, []);
-useEffect(() => {
-  const fetchStations = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/getStations`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setStations(data);
-    } catch (error) {
-      console.error("Error fetching stations:", error);
-    }
-  };
-
-  fetchStations();
-}, []);
-
 
 
 
