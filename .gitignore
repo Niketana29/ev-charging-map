@@ -11,6 +11,10 @@
 # production
 /build
 
+/backend/node_modules
+/backend/.env.backend
+
+
 # misc
 .DS_Store
 # Ignore all .env files

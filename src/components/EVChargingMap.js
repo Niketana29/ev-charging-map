@@ -72,7 +72,10 @@ const EVChargingMap = () => {
   const [stations, setStations] = useState([]);
   
 
-
+  useEffect(() => {
+    loadGoogleMapsScript();
+  }, []);
+  
 
 // Get user location on mount
 useEffect(() => {
@@ -254,6 +257,7 @@ useEffect(() => {
 
 
 
+
  // Removed unnecessary isLoaded check
                 
   const BatteryIndicator = ({ batteryLevel }) => {
@@ -291,43 +295,46 @@ const fetchData = async () => {
   
   
 
-  const trackUserLocation = () => {
-    if (navigator.geolocation) {
-      const id = navigator.geolocation.watchPosition(
-        (position) => {
-          const newLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-  
-          // ✅ Debugging
-          console.log("User Location:", newLocation);
-  
-          // ✅ Validate the location before updating state
-          if (
-            newLocation &&
-            typeof newLocation.lat === "number" &&
-            typeof newLocation.lng === "number" &&
-            !isNaN(newLocation.lat) &&
-            !isNaN(newLocation.lng)
-          ) {
-            setUserLocation(newLocation);
-            setCenter(newLocation);
-          } else {
-            console.error("Invalid location received:", newLocation);
-          }
-        },
-        (error) => {
-          console.warn("Geolocation error:", error);
-          addNotification("Battery level is low!", "warning");
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-      setWatchId(id);
-    } else {
-      console.error("Geolocation is not supported by this browser.");
-    }
-  };
+const trackUserLocation = () => {
+  if (navigator.geolocation) {
+    const id = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!position || !position.coords) {
+          console.error("Invalid geolocation data received");
+          return;
+        }
+
+        const newLocation = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+
+        console.log("User Location:", newLocation);
+
+        if (
+          typeof newLocation.lat === "number" &&
+          typeof newLocation.lng === "number" &&
+          !isNaN(newLocation.lat) &&
+          !isNaN(newLocation.lng)
+        ) {
+          setUserLocation(newLocation);
+          setCenter(newLocation);
+        } else {
+          console.error("Invalid location received:", newLocation);
+        }
+      },
+      (error) => {
+        console.warn("Geolocation error:", error);
+        addNotification("⚠️ Unable to track location!", "warning");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+    setWatchId(id);
+  } else {
+    console.error("Geolocation is not supported by this browser.");
+  }
+};
+
   
   const findNearestChargingStation = (origin, chargingStations) => {
     let nearestStation = null;
@@ -349,10 +356,13 @@ const fetchData = async () => {
 };
 
 
-
 const getCoordinates = async (address) => {
   try {
-    if (!address) return null;
+    if (!address) {
+      addNotification("⚠️ Please enter a valid address.", "warning");
+      return null;
+    }
+
     console.log("📍 Geocoding Address:", address);
 
     const response = await axios.get(
@@ -361,18 +371,20 @@ const getCoordinates = async (address) => {
 
     console.log("📍 Geocode Response:", response.data);
 
-    if (response.data.status !== "OK" || response.data.results.length === 0) {
-      console.error("❌ Geocoding failed:", response.data.status);
-      addNotification("⚠️ Invalid address. Try another.", "warning");
+    if (!response.data || response.data.status !== "OK" || !response.data.results.length) {
+      console.error("❌ Geocoding failed:", response.data?.status || "No response");
+      addNotification("⚠️ Address not found. Please enter a valid location.", "warning");
       return null;
     }
 
     return response.data.results[0].geometry.location;
   } catch (error) {
     console.error("Geocoding API error:", error);
+    addNotification("⚠️ Unable to fetch location. Try again later.", "danger");
     return null;
   }
 };
+
 
 
   
@@ -399,7 +411,7 @@ const calculateBatteryConsumption = (distance, vehicleType, batteryLevel, setBat
 
   const consumptionRate = batteryConsumptionRates[vehicleType];
   if (!consumptionRate) {
-    addNotification("Battery level is low!", "warning");
+    addNotification("⚠️ Invalid vehicle type selected!", "warning");
     return;
   }
 
@@ -407,12 +419,13 @@ const calculateBatteryConsumption = (distance, vehicleType, batteryLevel, setBat
   const newBatteryLevel = Math.max(0, batteryLevel - consumedBattery); // Prevent negative battery
 
   setBatteryLevel(newBatteryLevel);
-  addNotification(`Battery level reduced to ${newBatteryLevel.toFixed(2)}%`);
+  addNotification(`🔋 Battery level reduced to ${newBatteryLevel.toFixed(2)}%`);
 
-  if (newBatteryLevel <= 0) {
-    addNotification("Battery depleted! You need to recharge.");
+  if (newBatteryLevel === 0) {
+    addNotification("⚠️ Battery depleted! You need to recharge immediately.");
   }
 };
+
 
   
   
@@ -427,29 +440,32 @@ const fetchUserLocation = async () => {
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.error("⚠️ Geolocation Error:", error);
-        addNotification("⚠️ Unable to fetch location. Using default location.", "warning");
-        resolve({ latitude: 28.6139, longitude: 77.2090 }); // Default fallback
-      }
-    );
+navigator.geolocation.getCurrentPosition(
+  (position) => {
+    resolve({
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    });
+  },
+  (error) => {
+    console.error("⚠️ Geolocation Error:", error);
+    addNotification("⚠️ Unable to fetch location. Using default location.", "warning");
+    resolve({ latitude: 28.6139, longitude: 77.2090 }); // Default fallback
+  },
+  { enableHighAccuracy: true, timeout: 10000 } // Add high accuracy and timeout
+);
+
   });
 };
 
   
 const fetchGeocode = async (address) => {
-  if (!address?.trim()) {
+  if (!address || !address.trim()) { // Ensure it's a string
     console.error("⚠️ Geocoding Error: Address is empty!");
-    addNotification?.("⚠️ Please enter a valid address!", "warning"); 
+    addNotification?.("⚠️ Please enter a valid address!", "warning");
     return null;
   }
+  
 
   try {
     const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
@@ -494,9 +510,11 @@ const fetchDirections = async (startCoords, nearestStation) => {
   return new Promise((resolve, reject) => {
     directionsService.route(
       {
-        origin: new google.maps.LatLng(startCoords.lat, startCoords.lng),
+        origin: new google.maps.LatLng(startCoords.latitude, startCoords.longitude),
         destination: new google.maps.LatLng(nearestStation.latitude, nearestStation.longitude),
-        travelMode: google.maps.TravelMode.DRIVING,
+        travelMode: google.maps.TravelMode.DRIVING, // Ensure travelMode exists
+        provideRouteAlternatives: true, // Add alternate routes if possible
+
       },
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK) {
@@ -532,9 +550,11 @@ const getNearestStation = (coords) => {
   }
 
   const validStations = chargingStations.filter(station =>
+    station.latitude && station.longitude &&
     !isNaN(+station.latitude) && !isNaN(+station.longitude) &&
     station["Supported Vehicle Types"]?.includes(vehicleType)
   );
+  
 
   if (!validStations.length) {
     addNotification?.("⚠️ No stations support your vehicle type!", "warning");
@@ -568,7 +588,7 @@ const calculateRoute = async () => {
     startCoords = userLocation || await fetchUserLocation();
   }
 
-  if (!startCoords || isNaN(startCoords.lat) || isNaN(startCoords.lng)) {
+  if (!startCoords || isNaN(startCoords.latitude) || isNaN(startCoords.longitude)) {
     console.error("⚠️ Invalid start location:", startCoords);
     addNotification?.("⚠️ Unable to determine your location!", "warning");
     return;
@@ -603,7 +623,8 @@ const calculateRoute = async () => {
     addNotification?.(`📍 Estimated Travel Time: ${data.routes[0].legs[0].duration.text}`, "info");
     addNotification?.(`🔋 Estimated Battery Usage: ${batteryUsage.toFixed(2)}%`, "info");
 
-    setCenter?.(startCoords);
+    setCenter?.({ lat: startCoords.latitude, lng: startCoords.longitude });
+
   } catch (error) {
     console.error("❌ Error fetching directions:", error);
     addNotification?.("❌ Error fetching route data. Check API configuration.", "danger");
@@ -645,7 +666,8 @@ const handlePlaceChanged = () => {
     const lat = place.geometry.location.lat();
     const lng = place.geometry.location.lng();
 
-    setStartLocation({ lat, lng });
+    setStartLocation({ latitude: lat, longitude: lng });
+
 
     // Pan the map to the selected location
     if (mapRef.current) {
@@ -740,7 +762,7 @@ const loadGoogleMapsScript = () => {
             />
           </Form.Group>
 
-          <Button variant="primary" onClick={calculateRoute} className="mt-2" disabled={loading}>
+          <Button variant="primary" onClick={!loading ? calculateRoute : null} className="mt-2" disabled={loading}>
             {loading ? "Calculating..." : "Calculate Route"}
           </Button>
 
@@ -785,7 +807,7 @@ const loadGoogleMapsScript = () => {
     position={{ lat: parseFloat(station.latitude), lng: parseFloat(station.longitude) }}
     icon={{
       url: "https://maps.google.com/mapfiles/kml/shapes/charging_station.png",
-      scaledSize: window.google ? new window.google.maps.Size(30, 30) : null, // Prevent undefined error
+      scaledSize: window.google?.maps ? new window.google.maps.Size(30, 30) : null, // Prevent undefined error
     }}
   />
 ))}

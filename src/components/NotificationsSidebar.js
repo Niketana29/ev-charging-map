@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 
 const NotificationsSidebar = ({ notifications, clearNotifications, removeNotification }) => {
@@ -9,6 +9,11 @@ const NotificationsSidebar = ({ notifications, clearNotifications, removeNotific
             setIsOpen(true);
         }
     }, [notifications]);
+
+    const handleRemove = useCallback((id) => {
+        removeNotification(id);
+    }, [removeNotification]);
+
 
     return (
         <div style={{ 
